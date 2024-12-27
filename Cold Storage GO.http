@@ -1,6 +1,11 @@
-@Cold_Storage_GO_HostAddress = http://localhost:5135
+@Cold Storage GO_HostAddress = https://localhost:7290
 
-GET {{Cold_Storage_GO_HostAddress}}/weatherforecast/
-Accept: application/json
+POST {{Cold Storage GO_HostAddress}}/test
+Content-Type: application/json
+
+{
+    "title": "ASP.NET Core",
+    "description": "My first web API"
+}
 
 ###
