@@ -1,0 +1,6 @@
+@Cold_Storage_GO_HostAddress = http://localhost:5135
+
+GET {{Cold_Storage_GO_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
