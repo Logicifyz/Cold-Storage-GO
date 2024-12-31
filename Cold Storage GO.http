@@ -9,3 +9,16 @@ Content-Type: application/json
 }
 
 ###
+
+POST https://localhost:7290/api/account/change-password
+SessionId: 98fe291f-b0f9-4e7a-ae12-3166313c1f89
+Content-Type: application/json
+
+{
+  "currentPassword": "stringst",
+  "newPassword": "qwertyuiop",
+  "confirmPassword": "qwertyuiop"
+}
+
+
+###

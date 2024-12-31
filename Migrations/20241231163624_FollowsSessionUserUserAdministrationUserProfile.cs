@@ -7,7 +7,7 @@ using MySql.EntityFrameworkCore.Metadata;
 namespace Cold_Storage_GO.Migrations
 {
     /// <inheritdoc />
-    public partial class initialcreate : Migration
+    public partial class FollowsSessionUserUserAdministrationUserProfile : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -50,6 +50,31 @@ namespace Cold_Storage_GO.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "Follows",
+                columns: table => new
+                {
+                    FollowerId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    FollowedId = table.Column<Guid>(type: "char(36)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Follows", x => new { x.FollowerId, x.FollowedId });
+                    table.ForeignKey(
+                        name: "FK_Follows_Users_FollowedId",
+                        column: x => x.FollowedId,
+                        principalTable: "Users",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Follows_Users_FollowerId",
+                        column: x => x.FollowerId,
+                        principalTable: "Users",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "UserAdministration",
                 columns: table => new
                 {
@@ -59,7 +84,8 @@ namespace Cold_Storage_GO.Migrations
                     PasswordResetToken = table.Column<string>(type: "longtext", nullable: true),
                     Activation = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     FailedLoginAttempts = table.Column<int>(type: "int", nullable: false),
-                    LockoutUntil = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    LockoutUntil = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    LastFailedLogin = table.Column<DateTime>(type: "datetime(6)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -83,7 +109,9 @@ namespace Cold_Storage_GO.Migrations
                     PhoneNumber = table.Column<string>(type: "longtext", nullable: false),
                     StreetAddress = table.Column<string>(type: "longtext", nullable: false),
                     PostalCode = table.Column<string>(type: "longtext", nullable: false),
-                    UserId = table.Column<Guid>(type: "char(36)", nullable: false)
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    SubscriptionStatus = table.Column<string>(type: "longtext", nullable: false),
+                    ProfilePicture = table.Column<byte[]>(type: "longblob", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -98,6 +126,11 @@ namespace Cold_Storage_GO.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Follows_FollowedId",
+                table: "Follows",
+                column: "FollowedId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_UserProfiles_UserId",
                 table: "UserProfiles",
                 column: "UserId",
@@ -107,6 +140,9 @@ namespace Cold_Storage_GO.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "Follows");
+
             migrationBuilder.DropTable(
                 name: "Sessions");
 

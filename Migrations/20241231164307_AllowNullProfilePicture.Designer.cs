@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cold_Storage_GO.Migrations
 {
     [DbContext(typeof(DbContexts))]
-    [Migration("20241231112119_AddLastFailedLoginToUserAdministration")]
-    partial class AddLastFailedLoginToUserAdministration
+    [Migration("20241231164307_AllowNullProfilePicture")]
+    partial class AllowNullProfilePicture
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -21,6 +21,23 @@ namespace Cold_Storage_GO.Migrations
             modelBuilder
                 .HasAnnotation("ProductVersion", "8.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.Follows", b =>
+                {
+                    b.Property<Guid>("FollowerId")
+                        .HasColumnType("char(36)")
+                        .HasColumnOrder(0);
+
+                    b.Property<Guid>("FollowedId")
+                        .HasColumnType("char(36)")
+                        .HasColumnOrder(1);
+
+                    b.HasKey("FollowerId", "FollowedId");
+
+                    b.HasIndex("FollowedId");
+
+                    b.ToTable("Follows");
+                });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.Session", b =>
                 {
@@ -129,7 +146,14 @@ namespace Cold_Storage_GO.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<byte[]>("ProfilePicture")
+                        .HasColumnType("longblob");
+
                     b.Property<string>("StreetAddress")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("SubscriptionStatus")
                         .IsRequired()
                         .HasColumnType("longtext");
 
@@ -142,6 +166,25 @@ namespace Cold_Storage_GO.Migrations
                         .IsUnique();
 
                     b.ToTable("UserProfiles");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.Follows", b =>
+                {
+                    b.HasOne("Cold_Storage_GO.Models.User", "Followed")
+                        .WithMany("Followers")
+                        .HasForeignKey("FollowedId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Cold_Storage_GO.Models.User", "Follower")
+                        .WithMany("Following")
+                        .HasForeignKey("FollowerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Followed");
+
+                    b.Navigation("Follower");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.UserAdministration", b =>
@@ -168,6 +211,10 @@ namespace Cold_Storage_GO.Migrations
 
             modelBuilder.Entity("Cold_Storage_GO.Models.User", b =>
                 {
+                    b.Navigation("Followers");
+
+                    b.Navigation("Following");
+
                     b.Navigation("UserAdministration")
                         .IsRequired();
 

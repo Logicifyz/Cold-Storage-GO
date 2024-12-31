@@ -17,6 +17,8 @@ namespace Cold_Storage_GO.Models
         public string Role { get; set; } = "user"; // Default role
         public UserProfile UserProfile { get; set; }
         public UserAdministration UserAdministration { get; set; }
+        public ICollection<Follows> Followers { get; set; } // Users following this user
+        public ICollection<Follows> Following { get; set; } // Users this user is following
 
     }
 }

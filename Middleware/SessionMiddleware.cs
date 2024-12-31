@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Cold_Storage_GO.Middleware
@@ -19,18 +20,16 @@ namespace Cold_Storage_GO.Middleware
 
         public async Task InvokeAsync(HttpContext context)
         {
-            // Define paths to exclude from session validation
-            var excludedPaths = new[] { "/api/Auth", "/swagger" }; // Add login and register endpoints
             var requestPath = context.Request.Path.Value;
+            var excludedPaths = new[] { "/api/Auth", "/swagger", "/api/Account/profile/" };
 
             // Skip session validation for excluded paths
             if (excludedPaths.Any(path => requestPath.StartsWith(path, StringComparison.OrdinalIgnoreCase)))
             {
-                await _next(context); // Proceed to the next middleware or endpoint
+                await _next(context);
                 return;
             }
 
-            // Create a scope to resolve DbContexts
             using (var scope = _scopeFactory.CreateScope())
             {
                 var _context = scope.ServiceProvider.GetRequiredService<DbContexts>();
@@ -39,59 +38,42 @@ namespace Cold_Storage_GO.Middleware
                 var sessionId = context.Request.Headers["SessionId"].ToString();
                 if (string.IsNullOrEmpty(sessionId))
                 {
-                    // Return Unauthorized if SessionId is missing
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                     await context.Response.WriteAsync("Session ID is missing.");
                     return;
                 }
 
                 // Validate the session in the database
-                var session = await _context.Sessions.FirstOrDefaultAsync(s => s.SessionId == sessionId && s.IsActive);
-                if (session == null)
+                var session = await _context.Sessions.FirstOrDefaultAsync(s => s.SessionId == sessionId);
+                if (session == null || !session.IsActive)
                 {
-                    // Return Unauthorized if session is invalid or expired
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    _context.Sessions.Remove(session);
+                    await _context.SaveChangesAsync();
                     await context.Response.WriteAsync("Invalid or expired session.");
                     return;
                 }
 
-                // Update the session's LastAccessed time
-                session.LastAccessed = DateTime.UtcNow;
-                _context.Sessions.Update(session);
-                await _context.SaveChangesAsync();
-
-                // Proceed with the next middleware or endpoint
-                await _next(context);
-            }
-        }
-
-
-        // Optional: Expiry Check for a specific session (you can expose this as a separate endpoint if needed)
-        public async Task<IActionResult> CheckSessionExpiration(string sessionId)
-        {
-            // Create a scope to resolve DbContexts
-            using (var scope = _scopeFactory.CreateScope())
-            {
-                var _context = scope.ServiceProvider.GetRequiredService<DbContexts>();
-
-                var session = await _context.Sessions.FirstOrDefaultAsync(s => s.SessionId == sessionId);
-
-                if (session == null)
-                {
-                    return new UnauthorizedResult(); // Unauthorized response for missing session
-                }
-
-                // Check for expiry (e.g., 30 minutes of inactivity)
+                // Check session expiry (e.g., 30 minutes of inactivity)
                 var sessionExpiry = session.LastAccessed.AddMinutes(30);
                 if (DateTime.UtcNow > sessionExpiry)
                 {
                     session.IsActive = false;
-                    _context.Sessions.Update(session);
+                    _context.Sessions.Remove(session);
                     await _context.SaveChangesAsync();
-                    return new UnauthorizedResult(); // Unauthorized response for expired session
+
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    await context.Response.WriteAsync("Session expired and deleted.");
+                    return;
                 }
 
-                return new OkResult(); // Return Ok if the session is still valid
+                // Update LastAccessed timestamp
+                session.LastAccessed = DateTime.UtcNow;
+                _context.Sessions.Update(session);
+                await _context.SaveChangesAsync();
+
+                // Proceed to the next middleware or endpoint
+                await _next(context);
             }
         }
     }
