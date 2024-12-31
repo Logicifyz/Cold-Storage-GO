@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Cold_Storage_GO.Models;
 
 namespace Cold_Storage_GO
 {
@@ -12,9 +13,10 @@ namespace Cold_Storage_GO
                 "MyConnection");
                 if (connectionString != null)
                 {
-                    optionsBuilder.UseSqlServer(connectionString);
+                    optionsBuilder.UseMySQL(connectionString);
                 }
             }
+        public DbSet<MealKit> MealKits { get; set; }
     }
     
-}
+}   
