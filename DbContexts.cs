@@ -25,6 +25,8 @@ namespace Cold_Storage_GO
         public DbSet<Staff> Staff { get; set; }
         public DbSet<SupportTicket> SupportTickets { get; set; }
         public DbSet<StaffSession> StaffSessions { get; set; }
+        public DbSet<Article> Articles { get; set; }
+
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
