@@ -23,7 +23,7 @@ namespace Cold_Storage_GO.Controllers
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
         {
             // Check if the session exists and is active
-            var session = await _context.Sessions.FirstOrDefaultAsync(s => s.SessionId == request.SessionId && s.IsActive);
+            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == HttpContext.Request.Headers["SessionId"]);
             if (session == null)
             {
                 return Unauthorized("Session expired or not found.");
@@ -71,7 +71,7 @@ namespace Cold_Storage_GO.Controllers
         public async Task<IActionResult> DeleteAccount()
         {
             // Get the currently authenticated user based on the session
-            var session = await _context.Sessions.FirstOrDefaultAsync(s => s.IsActive && s.SessionId == HttpContext.Request.Headers["SessionId"]);
+            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == HttpContext.Request.Headers["SessionId"]);
             if (session == null)
             {
                 return Unauthorized("Session expired or not found.");
@@ -92,9 +92,9 @@ namespace Cold_Storage_GO.Controllers
                 _context.UserAdministration.Remove(user.UserAdministration);
             }
 
-            // Delete the user's sessions
-            var userSessions = await _context.Sessions.Where(s => s.UserId == user.UserId).ToListAsync();
-            _context.Sessions.RemoveRange(userSessions);
+            // Delete the user's UserSessions
+            var userUserSessions = await _context.UserSessions.Where(s => s.UserId == user.UserId).ToListAsync();
+            _context.UserSessions.RemoveRange(userUserSessions);
 
             // Delete the user's profile and other related data
             var userProfile = await _context.UserProfiles.Where(up => up.UserId == user.UserId).FirstOrDefaultAsync();
@@ -116,7 +116,7 @@ namespace Cold_Storage_GO.Controllers
         public async Task<IActionResult> UpdateProfile([FromForm] UpdateProfileRequest request)
         {
             // Get the currently authenticated user based on the session
-            var session = await _context.Sessions.FirstOrDefaultAsync(s => s.IsActive && s.SessionId == HttpContext.Request.Headers["SessionId"]);
+            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == HttpContext.Request.Headers["SessionId"]);
             if (session == null)
             {
                 return Unauthorized("Session expired or not found.");
@@ -171,7 +171,7 @@ namespace Cold_Storage_GO.Controllers
         public async Task<IActionResult> GetProfile()
         {
             // Get the currently authenticated user based on the session
-            var session = await _context.Sessions.FirstOrDefaultAsync(s => s.IsActive && s.SessionId == HttpContext.Request.Headers["SessionId"]);
+            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == HttpContext.Request.Headers["SessionId"]);
             if (session == null)
             {
                 return Unauthorized("Session expired or not found.");
@@ -236,7 +236,7 @@ namespace Cold_Storage_GO.Controllers
         public async Task<IActionResult> Follow([FromBody] FollowRequest request)
         {
             // Get the current user based on the session
-            var session = await _context.Sessions.FirstOrDefaultAsync(s => s.IsActive && s.SessionId == HttpContext.Request.Headers["SessionId"]);
+            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == HttpContext.Request.Headers["SessionId"]);
             if (session == null)
             {
                 return Unauthorized("Session expired or not found.");
@@ -287,7 +287,7 @@ namespace Cold_Storage_GO.Controllers
         public async Task<IActionResult> Unfollow([FromBody] FollowRequest request)
         {
             // Get the current user based on the session
-            var session = await _context.Sessions.FirstOrDefaultAsync(s => s.IsActive && s.SessionId == HttpContext.Request.Headers["SessionId"]);
+            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == HttpContext.Request.Headers["SessionId"]);
             if (session == null)
             {
                 return Unauthorized("Session expired or not found.");
@@ -330,7 +330,7 @@ namespace Cold_Storage_GO.Controllers
         public async Task<IActionResult> GetFollowingList()
         {
             // Get the current user based on the session
-            var session = await _context.Sessions.FirstOrDefaultAsync(s => s.IsActive && s.SessionId == HttpContext.Request.Headers["SessionId"]);
+            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == HttpContext.Request.Headers["SessionId"]);
             if (session == null)
             {
                 return Unauthorized("Session expired or not found.");
@@ -363,7 +363,7 @@ namespace Cold_Storage_GO.Controllers
         public async Task<IActionResult> GetFollowersList()
         {
             // Get the current user based on the session
-            var session = await _context.Sessions.FirstOrDefaultAsync(s => s.IsActive && s.SessionId == HttpContext.Request.Headers["SessionId"]);
+            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == HttpContext.Request.Headers["SessionId"]);
             if (session == null)
             {
                 return Unauthorized("Session expired or not found.");
@@ -397,8 +397,6 @@ namespace Cold_Storage_GO.Controllers
         // Request Model for password change
         public class ChangePasswordRequest
         {
-            [Required]
-            public string SessionId { get; set; }
 
             [Required]
             public string CurrentPassword { get; set; }
@@ -417,7 +415,7 @@ namespace Cold_Storage_GO.Controllers
             public string PhoneNumber { get; set; }
             public string StreetAddress { get; set; }
             public string PostalCode { get; set; }
-            public IFormFile ProfilePicture { get; set; }  // Optional profile picture
+            public IFormFile? ProfilePicture { get; set; }  // Optional profile picture
 
         }
 

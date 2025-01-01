@@ -1,11 +1,11 @@
 ﻿namespace Cold_Storage_GO.Models
 {
-    public class Session
+    public class UserSession
     {
  
             public Guid Id { get; set; } // Primary Key
 
-            public string SessionId { get; set; } // Unique session identifier, e.g., ASP.NET_SessionId or custom AuthToken.
+            public string UserSessionId { get; set; } // Unique session identifier, e.g., ASP.NET_SessionId or custom AuthToken.
 
             public Guid UserId { get; set; } // Associated user ID.
 

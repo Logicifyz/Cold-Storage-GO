@@ -20,8 +20,13 @@ namespace Cold_Storage_GO
         public DbSet<UserAdministration> UserAdministration { get; set; }
 
         public DbSet<UserProfile> UserProfiles { get; set; }
-        public DbSet<Session> Sessions { get; set; }
+        public DbSet<UserSession> UserSessions { get; set; }
         public DbSet<Follows> Follows { get; set; }
+        public DbSet<Staff> Staff { get; set; }
+        public DbSet<SupportTicket> SupportTickets { get; set; }
+        public DbSet<StaffSession> StaffSessions { get; set; }
+
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

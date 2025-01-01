@@ -147,18 +147,18 @@ public class AuthController : ControllerBase
 
         await _context.SaveChangesAsync();
         // Check for an existing active session
-        var existingSession = await _context.Sessions.FirstOrDefaultAsync(s => s.UserId == user.UserId && s.IsActive);
+        var existingSession = await _context.UserSessions.FirstOrDefaultAsync(s => s.UserId == user.UserId && s.IsActive);
 
         if (existingSession != null)
         {
             // Update LastAccessed for the existing session
             existingSession.LastAccessed = DateTime.UtcNow;
-            _context.Sessions.Update(existingSession);
+            _context.UserSessions.Update(existingSession);
             await _context.SaveChangesAsync();
 
             return Ok(new
             {
-                SessionId = existingSession.SessionId,
+                UserSessionId = existingSession.UserSessionId,
                 UserId = user.UserId,
                 Username = user.Username,
                 Role = user.Role,
@@ -173,10 +173,10 @@ public class AuthController : ControllerBase
         }
 
         // Create a new session if none exists
-        var sessionId = Guid.NewGuid().ToString();
-        var session = new Session
+        var UserSessionId = Guid.NewGuid().ToString();
+        var session = new UserSession
         {
-            SessionId = sessionId,
+            UserSessionId = UserSessionId,
             UserId = user.UserId,
             CreatedAt = DateTime.UtcNow,
             LastAccessed = DateTime.UtcNow,
@@ -184,12 +184,12 @@ public class AuthController : ControllerBase
             IsActive = true
         };
 
-        _context.Sessions.Add(session);
+        _context.UserSessions.Add(session);
         await _context.SaveChangesAsync();
 
         return Ok(new
         {
-            SessionId = sessionId,
+            UserSessionId = UserSessionId,
             UserId = user.UserId,
             Username = user.Username,
             Role = user.Role,
@@ -278,7 +278,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> RequestVerificationEmail([FromBody] VerificationEmailRequest request)
     {
         // Check if the user is logged in by verifying their session
-        var session = await _context.Sessions.FirstOrDefaultAsync(s => s.SessionId == request.SessionId && s.IsActive);
+        var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.UserSessionId == request.UserSessionId && s.IsActive);
 
         if (session == null)
         {
@@ -321,6 +321,66 @@ public class AuthController : ControllerBase
 
         return Ok(new { Message = "A new verification email has been sent." });
     }
+
+    [HttpPost("staff/login")]
+    public async Task<IActionResult> StaffLogin([FromBody] LoginRequest request)
+    {
+        var staff = await _context.Staff
+            .FirstOrDefaultAsync(s => s.Email == request.Email);
+
+        if (staff == null || staff.Role != "staff" || staff.Password != request.Password)
+        {
+            return Unauthorized("Invalid email, password, or role.");
+        }
+
+        // Check for an existing active session for the staff member
+        var existingSession = await _context.StaffSessions
+            .FirstOrDefaultAsync(s => s.StaffId == staff.StaffId && s.IsActive);
+
+        if (existingSession != null)
+        {
+            // Update LastAccessed for the existing session
+            existingSession.LastAccessed = DateTime.UtcNow;
+            _context.StaffSessions.Update(existingSession);
+            await _context.SaveChangesAsync();
+
+            // Return the existing session details
+            return Ok(new
+            {
+                SessionId = existingSession.StaffSessionId,
+                StaffId = staff.StaffId,
+                Name = staff.Name,
+                Email = staff.Email,
+                Role = staff.Role
+            });
+        }
+
+        // If no active session exists, create a new one
+        var staffSession = new StaffSession
+        {
+            StaffSessionId = Guid.NewGuid().ToString(),
+            StaffId = staff.StaffId,
+            CreatedAt = DateTime.UtcNow,
+            LastAccessed = DateTime.UtcNow,
+            Data = "{}",
+            IsActive = true
+        };
+
+        _context.StaffSessions.Add(staffSession);
+        await _context.SaveChangesAsync();
+
+        // Return a response with the new session and staff info
+        return Ok(new
+        {
+            SessionId = staffSession.StaffSessionId,
+            StaffId = staff.StaffId,
+            Name = staff.Name,
+            Email = staff.Email,
+            Role = staff.Role
+        });
+    }
+
+
 
     // Request Models
     public class RegisterRequest
@@ -385,6 +445,7 @@ public class AuthController : ControllerBase
         public string Email { get; set; }
 
         [Required(ErrorMessage = "Session ID is required.")]
-        public string SessionId { get; set; }
+        public string UserSessionId { get; set; }
     }
 }
+    

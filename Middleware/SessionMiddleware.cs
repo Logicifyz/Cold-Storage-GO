@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
@@ -34,46 +33,93 @@ namespace Cold_Storage_GO.Middleware
             {
                 var _context = scope.ServiceProvider.GetRequiredService<DbContexts>();
 
-                // Retrieve session ID from the request headers
+                // Retrieve SessionId from the request headers
                 var sessionId = context.Request.Headers["SessionId"].ToString();
+
                 if (string.IsNullOrEmpty(sessionId))
                 {
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    await context.Response.WriteAsync("Session ID is missing.");
+                    await context.Response.WriteAsync("Session ID is missing!!");
                     return;
                 }
 
-                // Validate the session in the database
-                var session = await _context.Sessions.FirstOrDefaultAsync(s => s.SessionId == sessionId);
-                if (session == null || !session.IsActive)
+                // First, check in UserSessions table
+                var userSession = await _context.UserSessions
+                    .FirstOrDefaultAsync(s => s.UserSessionId == sessionId);
+
+                if (userSession != null)
                 {
-                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    _context.Sessions.Remove(session);
+                    // Validate the User session
+                    if (!userSession.IsActive)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        _context.UserSessions.Remove(userSession);
+                        await _context.SaveChangesAsync();
+                        await context.Response.WriteAsync("Invalid or expired user session.");
+                        return;
+                    }
+
+                    // Check session expiry (e.g., 30 minutes of inactivity)
+                    var sessionExpiry = userSession.LastAccessed.AddMinutes(30);
+                    if (DateTime.UtcNow > sessionExpiry)
+                    {
+                        userSession.IsActive = false;
+                        _context.UserSessions.Remove(userSession);
+                        await _context.SaveChangesAsync();
+
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        await context.Response.WriteAsync("User session expired and deleted.");
+                        return;
+                    }
+
+                    // Update LastAccessed timestamp for User session
+                    userSession.LastAccessed = DateTime.UtcNow;
+                    _context.UserSessions.Update(userSession);
                     await _context.SaveChangesAsync();
-                    await context.Response.WriteAsync("Invalid or expired session.");
+                    await _next(context);
                     return;
                 }
 
-                // Check session expiry (e.g., 30 minutes of inactivity)
-                var sessionExpiry = session.LastAccessed.AddMinutes(30);
-                if (DateTime.UtcNow > sessionExpiry)
+                // Next, check in StaffSessions table if no valid user session was found
+                var staffSession = await _context.StaffSessions
+                    .FirstOrDefaultAsync(s => s.StaffSessionId == sessionId);
+
+                if (staffSession != null)
                 {
-                    session.IsActive = false;
-                    _context.Sessions.Remove(session);
-                    await _context.SaveChangesAsync();
+                    // Validate the Staff session
+                    if (!staffSession.IsActive)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        _context.StaffSessions.Remove(staffSession);
+                        await _context.SaveChangesAsync();
+                        await context.Response.WriteAsync("Invalid or expired staff session.");
+                        return;
+                    }
 
-                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    await context.Response.WriteAsync("Session expired and deleted.");
+                    // Check session expiry (e.g., 30 minutes of inactivity)
+                    var staffSessionExpiry = staffSession.LastAccessed.AddMinutes(30);
+                    if (DateTime.UtcNow > staffSessionExpiry)
+                    {
+                        staffSession.IsActive = false;
+                        _context.StaffSessions.Remove(staffSession);
+                        await _context.SaveChangesAsync();
+
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        await context.Response.WriteAsync("Staff session expired and deleted.");
+                        return;
+                    }
+
+                    // Update LastAccessed timestamp for Staff session
+                    staffSession.LastAccessed = DateTime.UtcNow;
+                    _context.StaffSessions.Update(staffSession);
+                    await _context.SaveChangesAsync();
+                    await _next(context);
                     return;
                 }
 
-                // Update LastAccessed timestamp
-                session.LastAccessed = DateTime.UtcNow;
-                _context.Sessions.Update(session);
-                await _context.SaveChangesAsync();
-
-                // Proceed to the next middleware or endpoint
-                await _next(context);
+                // If no valid session found in either UserSessions or StaffSessions
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                await context.Response.WriteAsync("Session ID is invalid or does not exist.");
             }
         }
     }
