@@ -19,6 +19,44 @@ namespace Cold_Storage_GO.Migrations
                 .HasAnnotation("ProductVersion", "8.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
+            modelBuilder.Entity("Cold_Storage_GO.Models.Article", b =>
+                {
+                    b.Property<Guid>("ArticleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("Highlighted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<Guid?>("StaffId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("Views")
+                        .HasColumnType("int");
+
+                    b.HasKey("ArticleId");
+
+                    b.ToTable("Articles");
+                });
+
             modelBuilder.Entity("Cold_Storage_GO.Models.Dish", b =>
                 {
                     b.Property<Guid>("DishId")
@@ -61,9 +99,6 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<Guid>("MealKitId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime");
 
                     b.Property<Guid>("DishId")
                         .HasColumnType("char(36)");
@@ -217,15 +252,21 @@ namespace Cold_Storage_GO.Migrations
                     b.ToTable("Wallets");
                 });
 
-            modelBuilder.Entity("Cold_Storage_GO.Models.NutritionalFacts", b =>
+            modelBuilder.Entity("Cold_Storage_GO.Models.Follows", b =>
                 {
-                    b.HasOne("Cold_Storage_GO.Models.Dish", "Dish")
-                        .WithMany()
-                        .HasForeignKey("DishId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.Property<Guid>("FollowerId")
+                        .HasColumnType("char(36)")
+                        .HasColumnOrder(0);
 
-                    b.Navigation("Dish");
+                    b.Property<Guid>("FollowedId")
+                        .HasColumnType("char(36)")
+                        .HasColumnOrder(1);
+
+                    b.HasKey("FollowerId", "FollowedId");
+
+                    b.HasIndex("FollowedId");
+
+                    b.ToTable("Follows");
                 });
 #pragma warning restore 612, 618
         }

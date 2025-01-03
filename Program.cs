@@ -1,15 +1,46 @@
 using Microsoft.AspNetCore.Authentication.Negotiate;
+using Microsoft.OpenApi.Models; // Make sure to include this for Swagger
 using Cold_Storage_GO;
+using Cold_Storage_GO.Middleware;
+using Cold_Storage_GO.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
 builder.Services.AddControllers();
 builder.Services.AddDbContext<DbContexts>();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddSingleton<EmailService>();
+
+// Swagger configuration to include the SessionId header
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    // Add the custom SessionId header to Swagger
+    c.AddSecurityDefinition("SessionId", new OpenApiSecurityScheme
+    {
+        In = ParameterLocation.Header,
+        Description = "Session ID for session validation",
+        Name = "SessionId",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "bearer"
+    });
+
+    // Add a security requirement to include the SessionId header in Swagger UI
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "SessionId"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
 
 builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
    .AddNegotiate();
@@ -21,6 +52,9 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+
+// Use the custom SessionMiddleware for session validation
+app.UseMiddleware<SessionMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
