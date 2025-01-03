@@ -3,6 +3,7 @@ using System;
 using Cold_Storage_GO;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cold_Storage_GO.Migrations
 {
     [DbContext(typeof(DbContexts))]
-    partial class DbContextsModelSnapshot : ModelSnapshot
+    [Migration("20241231115527_CreateRewards")]
+    partial class CreateRewards
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -134,32 +137,6 @@ namespace Cold_Storage_GO.Migrations
                     b.ToTable("NutritionalFacts");
                 });
 
-            modelBuilder.Entity("Cold_Storage_GO.Models.Redemptions", b =>
-                {
-                    b.Property<Guid>("RedemptionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime>("ExpiryDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime>("RedeemedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<Guid>("RewardId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<bool>("RewardUsable")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("RedemptionId");
-
-                    b.ToTable("Redemptions");
-                });
-
             modelBuilder.Entity("Cold_Storage_GO.Models.Rewards", b =>
                 {
                     b.Property<Guid>("RewardId")
@@ -195,26 +172,6 @@ namespace Cold_Storage_GO.Migrations
                     b.HasKey("RewardId");
 
                     b.ToTable("Rewards");
-                });
-
-            modelBuilder.Entity("Cold_Storage_GO.Models.Wallet", b =>
-                {
-                    b.Property<Guid>("WalletId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<int>("CoinsEarned")
-                        .HasColumnType("int");
-
-                    b.Property<int>("CoinsRedeemed")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("WalletId");
-
-                    b.ToTable("Wallets");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.NutritionalFacts", b =>

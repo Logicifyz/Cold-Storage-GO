@@ -16,7 +16,21 @@ namespace Cold_Storage_GO
                     optionsBuilder.UseMySQL(connectionString);
                 }
             }
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<NutritionalFacts>()
+                .HasOne(nf => nf.Dish)
+                .WithMany() // Optional: Specify if `Dish` has a navigation property
+                .HasForeignKey(nf => nf.DishId)
+                .OnDelete(DeleteBehavior.Cascade);
+        }
+
         public DbSet<MealKit> MealKits { get; set; }
+        public DbSet<Dish> Dishes { get; set; }
+        public DbSet<NutritionalFacts> NutritionalFacts { get; set; }
+        public DbSet<Rewards> Rewards { get; set; }
+        public DbSet<Wallet> Wallets { get; set; }
+        public DbSet<Redemptions> Redemptions { get; set; }
     }
-    
+
 }   
