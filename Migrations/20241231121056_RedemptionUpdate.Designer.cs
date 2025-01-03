@@ -3,6 +3,7 @@ using System;
 using Cold_Storage_GO;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,52 +11,16 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cold_Storage_GO.Migrations
 {
     [DbContext(typeof(DbContexts))]
-    partial class DbContextsModelSnapshot : ModelSnapshot
+    [Migration("20241231121056_RedemptionUpdate")]
+    partial class RedemptionUpdate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "8.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
-
-            modelBuilder.Entity("Cold_Storage_GO.Models.Article", b =>
-                {
-                    b.Property<Guid>("ArticleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("Highlighted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<Guid?>("StaffId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("Views")
-                        .HasColumnType("int");
-
-                    b.HasKey("ArticleId");
-
-                    b.ToTable("Articles");
-                });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.Dish", b =>
                 {
@@ -99,6 +64,9 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<Guid>("MealKitId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime");
 
                     b.Property<Guid>("DishId")
                         .HasColumnType("char(36)");
@@ -252,21 +220,15 @@ namespace Cold_Storage_GO.Migrations
                     b.ToTable("Wallets");
                 });
 
-            modelBuilder.Entity("Cold_Storage_GO.Models.Follows", b =>
+            modelBuilder.Entity("Cold_Storage_GO.Models.NutritionalFacts", b =>
                 {
-                    b.Property<Guid>("FollowerId")
-                        .HasColumnType("char(36)")
-                        .HasColumnOrder(0);
+                    b.HasOne("Cold_Storage_GO.Models.Dish", "Dish")
+                        .WithMany()
+                        .HasForeignKey("DishId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Property<Guid>("FollowedId")
-                        .HasColumnType("char(36)")
-                        .HasColumnOrder(1);
-
-                    b.HasKey("FollowerId", "FollowedId");
-
-                    b.HasIndex("FollowedId");
-
-                    b.ToTable("Follows");
+                    b.Navigation("Dish");
                 });
 #pragma warning restore 612, 618
         }

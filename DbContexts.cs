@@ -1,24 +1,28 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Cold_Storage_GO.Models;
 
 namespace Cold_Storage_GO
 {
-    public class DbContexts(IConfiguration configuration) : DbContext
+    public class DbContexts : DbContext
     {
-        private readonly IConfiguration _configuration = configuration;
-        protected override void OnConfiguring(DbContextOptionsBuilder
-        optionsBuilder)
+        private readonly IConfiguration _configuration;
+
+        public DbContexts(IConfiguration configuration)
         {
-            string? connectionString = _configuration.GetConnectionString(
-            "MyConnection");
+            _configuration = configuration;
+        }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            string? connectionString = _configuration.GetConnectionString("MyConnection");
             if (connectionString != null)
             {
                 optionsBuilder.UseMySQL(connectionString);
             }
         }
+
         public DbSet<User> Users { get; set; }
         public DbSet<UserAdministration> UserAdministration { get; set; }
-
         public DbSet<UserProfile> UserProfiles { get; set; }
         public DbSet<UserSession> UserSessions { get; set; }
         public DbSet<Follows> Follows { get; set; }
@@ -26,8 +30,12 @@ namespace Cold_Storage_GO
         public DbSet<SupportTicket> SupportTickets { get; set; }
         public DbSet<StaffSession> StaffSessions { get; set; }
         public DbSet<Article> Articles { get; set; }
-
-
+        public DbSet<MealKit> MealKits { get; set; }
+        public DbSet<Dish> Dishes { get; set; }
+        public DbSet<NutritionalFacts> NutritionalFacts { get; set; }
+        public DbSet<Rewards> Rewards { get; set; }
+        public DbSet<Wallet> Wallets { get; set; }
+        public DbSet<Redemptions> Redemptions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -50,12 +58,13 @@ namespace Cold_Storage_GO
                 .WithMany(f => f.Followers)  // A User can have many Followers
                 .HasForeignKey(f => f.FollowedId)  // Explicitly define the foreign key
                 .OnDelete(DeleteBehavior.Restrict); // Prevent cascading deletes
+
+            // Configure the relationship for NutritionalFacts
+            modelBuilder.Entity<NutritionalFacts>()
+                .HasOne(nf => nf.Dish)
+                .WithMany() // Optional: Specify if `Dish` has a navigation property
+                .HasForeignKey(nf => nf.DishId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
-
-
-
-
     }
-
 }
-
