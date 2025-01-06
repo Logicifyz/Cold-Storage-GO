@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Cold_Storage_GO.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Cold_Storage_GO.Middleware
@@ -20,7 +22,7 @@ namespace Cold_Storage_GO.Middleware
         public async Task InvokeAsync(HttpContext context)
         {
             var requestPath = context.Request.Path.Value;
-            var excludedPaths = new[] { "/api/Auth", "/swagger", "/api/Account/profile/", "/api/HelpCentre" };
+            var excludedPaths = new[] { "/api/Auth", "/swagger", "/api/Account/profile/", "/api/HelpCentre", "/api/MealKit" };
 
             // Skip session validation for excluded paths
             if (excludedPaths.Any(path => requestPath.StartsWith(path, StringComparison.OrdinalIgnoreCase)))
@@ -49,6 +51,14 @@ namespace Cold_Storage_GO.Middleware
 
                 if (userSession != null)
                 {
+                    // Initialize the Data field if it's null or empty
+                    if (string.IsNullOrEmpty(userSession.Data))
+                    {
+                        userSession.Data = "[]"; // Initialize with an empty JSON array
+                        _context.UserSessions.Update(userSession);
+                        await _context.SaveChangesAsync();
+                    }
+
                     // Validate the User session
                     if (!userSession.IsActive)
                     {

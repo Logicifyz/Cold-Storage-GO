@@ -65,6 +65,8 @@ namespace Cold_Storage_GO
                 .WithMany() // Optional: Specify if `Dish` has a navigation property
                 .HasForeignKey(nf => nf.DishId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+
         }
     }
 }

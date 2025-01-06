@@ -18,6 +18,35 @@ namespace Cold_Storage_GO.Controllers
             _context = context;
         }
 
+        // POST: api/Wallet/create
+        [HttpPost("create")]
+        public async Task<IActionResult> CreateWallet(Guid userId)
+        {
+            // Check if the user exists
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                return NotFound("User not found.");
+
+            // Check if the wallet already exists for the user
+            if (await _context.Wallets.AnyAsync(w => w.UserId == userId))
+                return BadRequest("Wallet already exists for the user.");
+
+            // Create wallet with default values
+            var wallet = new Wallet
+            {
+                WalletId = Guid.NewGuid(),
+                UserId = userId,
+                CoinsEarned = 0,
+                CoinsRedeemed = 0
+            };
+
+            _context.Wallets.Add(wallet);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction("GetWallet", new { userId = userId }, wallet);
+        }
+
+
         // GET: api/Wallet/{userId}
         [HttpGet("{userId}")]
         public async Task<ActionResult<Wallet>> GetWallet(Guid userId)

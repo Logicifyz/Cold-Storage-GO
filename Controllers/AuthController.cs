@@ -74,8 +74,20 @@ public class AuthController : ControllerBase
             PasswordResetToken = null // Initially no reset token
         };
 
+
+        // Automatically create wallet for the user
+        var wallet = new Wallet
+        {
+            WalletId = Guid.NewGuid(),
+            UserId = user.UserId,
+            CoinsEarned = 0,
+            CoinsRedeemed = 0
+        };
+
+     
         // Add User and Profile to the database
         _context.Users.Add(user);
+        _context.Wallets.Add(wallet);
         _context.UserProfiles.Add(profile);
         _context.UserAdministration.Add(userAdmin);
 
@@ -91,7 +103,7 @@ public class AuthController : ControllerBase
         if (!emailSent)
             return StatusCode(500, "Failed to send verification email.");
 
-        return Ok(new { Message = "Registration successful. Please check your email for verification." });
+        return Ok(new { Message = "Registration successful. Please check your email for verification.", wallet });
     }
 
     [HttpPost("login")]
