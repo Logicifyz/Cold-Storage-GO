@@ -36,6 +36,15 @@ namespace Cold_Storage_GO
                 .WithMany(c => c.Replies)
                 .HasForeignKey(c => c.ParentCommentId)
                 .OnDelete(DeleteBehavior.Restrict); // Prevent cascading deletes
+
+            // Configure the relationship for NutritionalFacts
+            modelBuilder.Entity<NutritionalFacts>()
+                .HasOne(nf => nf.Dish)
+                .WithMany() // Optional: Specify if `Dish` has a navigation property
+                .HasForeignKey(nf => nf.DishId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
         }
     }
 }
