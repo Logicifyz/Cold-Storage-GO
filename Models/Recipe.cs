@@ -6,17 +6,46 @@ namespace Cold_Storage_GO.Models
     {
         [Key]
         public Guid RecipeId { get; set; }
-        public Guid UserId { get; set; }
-        public Guid DishId { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
+
+        [Required]
+        public Guid UserId { get; set; } 
+
+        [Required]
+        public Guid DishId { get; set; } 
+
+        [Required]
+        [MaxLength(100)]
+        public string Name { get; set; } = string.Empty; 
+
+        [Required]
+        [MaxLength(500)]
+        public string Description { get; set; } = string.Empty; 
+
+        [Range(1, 1440)] 
         public int TimeTaken { get; set; }
-        public string Ingredients { get; set; } = string.Empty;
-        public string Instructions { get; set; } = string.Empty;
-        public string Tags { get; set; } = string.Empty;
-        public string MediaUrl { get; set; } = string.Empty;
-        public string Visibility { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(1000)]
+        public string Ingredients { get; set; } = string.Empty; 
+
+        [Required]
+        [MaxLength(2000)]
+        public string Instructions { get; set; } = string.Empty; 
+
+        [MaxLength(200)]
+        public string Tags { get; set; } = string.Empty; 
+
+        [Url]
+        public string MediaUrl { get; set; } = string.Empty; 
+
+        [Required]
+        [RegularExpression("^(public|private|friends-only)$", ErrorMessage = "Visibility must be 'public', 'private', or 'friends-only'")]
+        public string Visibility { get; set; } = "public"; 
+
+        [Range(0, int.MaxValue)] 
         public int Upvotes { get; set; }
+
+        [Range(0, int.MaxValue)] 
         public int Downvotes { get; set; }
     }
 }

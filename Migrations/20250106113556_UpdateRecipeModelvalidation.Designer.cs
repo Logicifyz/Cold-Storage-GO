@@ -3,6 +3,7 @@ using System;
 using Cold_Storage_GO;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cold_Storage_GO.Migrations
 {
     [DbContext(typeof(DbContexts))]
-    partial class DbContextsModelSnapshot : ModelSnapshot
+    [Migration("20250106113556_UpdateRecipeModelvalidation")]
+    partial class UpdateRecipeModelvalidation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -27,8 +30,7 @@ namespace Cold_Storage_GO.Migrations
 
                     b.Property<string>("Message")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
+                        .HasColumnType("longtext");
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime(6)");
@@ -49,8 +51,7 @@ namespace Cold_Storage_GO.Migrations
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
+                        .HasColumnType("longtext");
 
                     b.Property<Guid?>("DiscussionId")
                         .HasColumnType("char(36)");
@@ -65,7 +66,7 @@ namespace Cold_Storage_GO.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<Guid?>("RecipeId")
+                    b.Property<Guid>("RecipeId")
                         .HasColumnType("char(36)");
 
                     b.Property<int>("Upvotes")
@@ -89,21 +90,18 @@ namespace Cold_Storage_GO.Migrations
 
                     b.Property<string>("Category")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("Downvotes")
                         .HasColumnType("int");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("Upvotes")
                         .HasColumnType("int");
