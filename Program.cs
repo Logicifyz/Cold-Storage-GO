@@ -1,61 +1,72 @@
-using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Authentication.Negotiate;
+using Microsoft.OpenApi.Models; // Make sure to include this for Swagger
 using Cold_Storage_GO;
-using Microsoft.AspNetCore.Mvc;
+using Cold_Storage_GO.Middleware;
+using Cold_Storage_GO.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container
+// Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddDbContext<DbContexts>();
+builder.Services.AddSingleton<EmailService>();
 
-// Add CORS policy
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()  // Allow all origins
-              .AllowAnyMethod()  // Allow all HTTP methods (GET, POST, etc.)
-              .AllowAnyHeader(); // Allow all headers
-    });
-});
-
-// Configure Swagger for API documentation
+// Swagger configuration to include the SessionId header
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo
+    // Add the custom SessionId header to Swagger
+    c.AddSecurityDefinition("SessionId", new OpenApiSecurityScheme
     {
-        Title = "CSGO API",
-        Version = "v1",
-        Description = "API documentation for CSGO application",
-        Contact = new OpenApiContact
+        In = ParameterLocation.Header,
+        Description = "Session ID for session validation",
+        Name = "SessionId",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "bearer"
+    });
+
+    // Add a security requirement to include the SessionId header in Swagger UI
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
         {
-            Name = "Your Name",
-            Email = "your.email@example.com"
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "SessionId"
+                }
+            },
+            new string[] {}
         }
     });
 });
-builder.Services.AddControllers(options =>
+
+builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
+   .AddNegotiate();
+
+builder.Services.AddAuthorization(options =>
 {
-    options.Filters.Add(new ProducesResponseTypeAttribute(typeof(ValidationProblemDetails), 400));
+    // By default, all incoming requests will be authorized according to the default policy.
+    options.FallbackPolicy = options.DefaultPolicy;
 });
 
 var app = builder.Build();
 
-app.UseCors("AllowAll");
+// Use the custom SessionMiddleware for session validation
+app.UseMiddleware<SessionMiddleware>();
 
-// Configure the HTTP request pipeline
+// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "CSGO API v1");
-        c.RoutePrefix = ""; // Makes Swagger UI the default route
-    });
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
+
 app.UseAuthorization();
+
 app.MapControllers();
+
 app.Run();

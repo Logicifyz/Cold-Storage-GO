@@ -3,6 +3,7 @@ using System;
 using Cold_Storage_GO;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,89 +11,16 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cold_Storage_GO.Migrations
 {
     [DbContext(typeof(DbContexts))]
-    partial class DbContextsModelSnapshot : ModelSnapshot
+    [Migration("20250101113911_ChangedtoUserSessions")]
+    partial class ChangedtoUserSessions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "8.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
-
-            modelBuilder.Entity("Cold_Storage_GO.Models.Article", b =>
-                {
-                    b.Property<Guid>("ArticleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("Highlighted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<Guid?>("StaffId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("Views")
-                        .HasColumnType("int");
-
-                    b.HasKey("ArticleId");
-
-                    b.ToTable("Articles");
-                });
-
-            modelBuilder.Entity("Cold_Storage_GO.Models.Dish", b =>
-                {
-                    b.Property<Guid>("DishId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Ingredients")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("Instructions")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<Guid?>("MealKitId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("Tags")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("DishId");
-
-                    b.ToTable("Dishes");
-                });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.Follows", b =>
                 {
@@ -109,147 +37,6 @@ namespace Cold_Storage_GO.Migrations
                     b.HasIndex("FollowedId");
 
                     b.ToTable("Follows");
-                });
-
-            modelBuilder.Entity("Cold_Storage_GO.Models.MealKit", b =>
-                {
-                    b.Property<Guid>("MealKitId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime");
-
-                    b.Property<Guid>("DishId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime>("ExpiryDate")
-                        .HasColumnType("datetime");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<int>("Price")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime");
-
-                    b.HasKey("MealKitId");
-
-                    b.ToTable("MealKits");
-                });
-
-            modelBuilder.Entity("Cold_Storage_GO.Models.NutritionalFacts", b =>
-                {
-                    b.Property<Guid>("DishId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<int>("Calories")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Cholesterol")
-                        .HasColumnType("int");
-
-                    b.Property<string>("DietaryCategory")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<int>("DietaryFibre")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Ingredients")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<int>("Protein")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SaturatedFat")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Sodium")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Sugar")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TransFat")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Vitamins")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.HasKey("DishId");
-
-                    b.ToTable("NutritionalFacts");
-                });
-
-            modelBuilder.Entity("Cold_Storage_GO.Models.Redemptions", b =>
-                {
-                    b.Property<Guid>("RedemptionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime>("ExpiryDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime>("RedeemedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<Guid>("RewardId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<bool>("RewardUsable")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("RedemptionId");
-
-                    b.ToTable("Redemptions");
-                });
-
-            modelBuilder.Entity("Cold_Storage_GO.Models.Rewards", b =>
-                {
-                    b.Property<Guid>("RewardId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("AvailabilityStatus")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<int>("CoinsCost")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<DateTime>("ExpiryDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("RewardType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.HasKey("RewardId");
-
-                    b.ToTable("Rewards");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.Staff", b =>
@@ -283,32 +70,6 @@ namespace Cold_Storage_GO.Migrations
                     b.HasKey("StaffId");
 
                     b.ToTable("Staff");
-                });
-
-            modelBuilder.Entity("Cold_Storage_GO.Models.StaffSession", b =>
-                {
-                    b.Property<string>("StaffSessionId")
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Data")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<DateTime>("LastAccessed")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<Guid>("StaffId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("StaffSessionId");
-
-                    b.ToTable("StaffSessions");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.SupportTicket", b =>
@@ -475,36 +236,16 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<DateTime>("LastAccessed")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("UserSessionId")
+                    b.Property<string>("SessionId")
                         .IsRequired()
                         .HasColumnType("longtext");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
 
                     b.HasKey("Id");
 
                     b.ToTable("UserSessions");
-                });
-
-            modelBuilder.Entity("Cold_Storage_GO.Models.Wallet", b =>
-                {
-                    b.Property<Guid>("WalletId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<int>("CoinsEarned")
-                        .HasColumnType("int");
-
-                    b.Property<int>("CoinsRedeemed")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("WalletId");
-
-                    b.ToTable("Wallets");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.Follows", b =>
@@ -524,17 +265,6 @@ namespace Cold_Storage_GO.Migrations
                     b.Navigation("Followed");
 
                     b.Navigation("Follower");
-                });
-
-            modelBuilder.Entity("Cold_Storage_GO.Models.NutritionalFacts", b =>
-                {
-                    b.HasOne("Cold_Storage_GO.Models.Dish", "Dish")
-                        .WithMany()
-                        .HasForeignKey("DishId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Dish");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.UserAdministration", b =>
