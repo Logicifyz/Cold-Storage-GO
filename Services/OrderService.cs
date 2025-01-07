@@ -1,39 +1,64 @@
 ﻿using Cold_Storage_GO.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace Cold_Storage_GO.Services;
-
-public class OrderService
+namespace Cold_Storage_GO.Services
 {
-    private readonly DbContexts _context;
-
-    public OrderService(DbContexts context)
+    public class OrderService
     {
-        _context = context;
-    }
+        private readonly DbContexts _context;
 
-    public async Task CreateOrderAsync(Guid subscriptionId, Guid userId, Guid mealKitId, int totalPrice, string promotionCode, string orderNotes)
-    {
-        var order = new Order
+        public OrderService(DbContexts context)
         {
-            OrderId = Guid.NewGuid(),
-            SubscriptionId = subscriptionId,
-            UserId = userId,
-            MealKitId = mealKitId,
-            OrderDate = DateTime.UtcNow,
-            TotalPrice = totalPrice,
-            PromotionCode = promotionCode,
-            OrderNotes = orderNotes
-        };
+            _context = context;
+        }
 
-        _context.Orders.Add(order);
-        await _context.SaveChangesAsync();
-    }
+        // ✅ User Creates an Order
+        public async Task CreateOrderAsync(Guid userId, Guid mealKitId, decimal totalPrice)
+        {
+            var order = new Order
+            {
+                OrderId = Guid.NewGuid(),
+                UserId = userId,
+                MealKitId = mealKitId,
+                TotalPrice = totalPrice,
+                OrderDate = DateTime.UtcNow,
+                OrderStatus = "Confirmed"
+            };
 
-    public async Task<IEnumerable<Order>> GetOrdersBySubscriptionAsync(Guid subscriptionId)
-    {
-        return await _context.Orders
-            .Where(o => o.SubscriptionId == subscriptionId)
-            .ToListAsync();
+            _context.Orders.Add(order);
+            await _context.SaveChangesAsync();
+        }
+
+        // ✅ Staff Updates Order Status
+        public async Task UpdateOrderStatusAsync(Guid orderId, string newStatus)
+        {
+            var order = await _context.Orders.FindAsync(orderId);
+            if (order == null) throw new Exception("Order not found.");
+
+            order.OrderStatus = newStatus;
+            await _context.SaveChangesAsync();
+        }
+
+        // ✅ Staff Management: Get All Orders
+        public async Task<IEnumerable<Order>> GetAllOrdersAsync()
+        {
+            return await _context.Orders.ToListAsync();
+        }
+
+        // ✅ Staff Management: Get Orders by Status
+        public async Task<IEnumerable<Order>> GetOrdersByStatusAsync(string status)
+        {
+            return await _context.Orders
+                .Where(o => o.OrderStatus == status)
+                .ToListAsync();
+        }
+
+        // ✅ Staff Management: Search Orders (Order ID or Customer ID)
+        public async Task<IEnumerable<Order>> SearchOrdersAsync(string query)
+        {
+            return await _context.Orders
+                .Where(o => o.OrderId.ToString().Contains(query) || o.UserId.ToString().Contains(query))
+                .ToListAsync();
+        }
     }
 }

@@ -15,16 +15,16 @@ namespace Cold_Storage_GO
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             string? connectionString = _configuration.GetConnectionString("MyConnection");
-
-            if (!string.IsNullOrEmpty(connectionString))
+            if (connectionString != null)
             {
-                // ✅ Correct approach for MySql.EntityFrameworkCore
                 optionsBuilder.UseMySQL(connectionString);
             }
         }
 
-        public DbSet<Order> Orders { get; set; }
         public DbSet<Subscription> Subscriptions { get; set; }
+        public DbSet<Order> Orders { get; set; }
         public DbSet<Delivery> Deliveries { get; set; }
+
+       
     }
 }

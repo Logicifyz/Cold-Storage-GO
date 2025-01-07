@@ -1,8 +1,7 @@
-﻿namespace Cold_Storage_GO.Models
+﻿namespace Cold_Storage_GO.Models;
+
+public class CreateDeliveryRequest
 {
-    public class CreateDeliveryRequest
-    {
-        public Guid OrderId { get; set; }
-        public DateTime DeliveryDatetime { get; set; }
-    }
+    public Guid OrderId { get; set; }
+    public DateTime DeliveryDatetime { get; set; }
 }
