@@ -1,38 +1,70 @@
-using Microsoft.AspNetCore.Authentication.Negotiate;
+﻿using Microsoft.AspNetCore.Authentication.Negotiate;
+using Microsoft.OpenApi.Models;
 using Cold_Storage_GO;
+using Cold_Storage_GO.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
+// ✅ Register Controllers explicitly
 builder.Services.AddControllers();
-builder.Services.AddDbContext<DbContexts>();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
+// ✅ Register DbContext for MySQL (Ensure Proper Setup)
+builder.Services.AddDbContext<DbContexts>();
+
+// ✅ Register Services
+builder.Services.AddScoped<SubscriptionService>();
+builder.Services.AddScoped<OrderService>();
+builder.Services.AddScoped<DeliveryService>();
+
+// ✅ Swagger Setup
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("SessionId", new OpenApiSecurityScheme
+    {
+        In = ParameterLocation.Header,
+        Description = "Session ID for security validation",
+        Name = "SessionId",
+        Type = SecuritySchemeType.ApiKey
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "SessionId"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
+// ✅ Authentication and Authorization Setup
 builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
    .AddNegotiate();
 
-builder.Services.AddAuthorization(options =>
-{
-    // By default, all incoming requests will be authorized according to the default policy.
-    options.FallbackPolicy = options.DefaultPolicy;
-});
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// ✅ Proper Middleware Order
+app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
+
+// ✅ Register Controllers in Pipeline
+app.MapControllers();
+
+// ✅ Enable Swagger Only for Development
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
-
-app.MapControllers();
 
 app.Run();
