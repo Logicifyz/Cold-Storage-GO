@@ -7,9 +7,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Cold_Storage_GO.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Cold_Storage_GO.Controllers
 {
+    [AllowAnonymous]
     [ApiController]
     [Route("api/[controller]")]
     public class MealKitController : ControllerBase

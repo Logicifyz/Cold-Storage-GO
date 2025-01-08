@@ -83,7 +83,6 @@ namespace Cold_Storage_GO
                 .HasForeignKey(c => c.ParentCommentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Additional configurations for Recipes, Discussions, etc., if needed.
         }
     }
 }
