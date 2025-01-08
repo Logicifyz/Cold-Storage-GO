@@ -17,10 +17,11 @@ namespace Cold_Storage_GO
             string? connectionString = _configuration.GetConnectionString("MyConnection");
             if (connectionString != null)
             {
-                optionsBuilder.UseMySQL(connectionString);
+                optionsBuilder.UseMySQL(connectionString); // Ensure MySQL package is installed.
             }
         }
 
+        // Define DbSet properties
         public DbSet<User> Users { get; set; }
         public DbSet<UserAdministration> UserAdministration { get; set; }
         public DbSet<UserProfile> UserProfiles { get; set; }
@@ -37,6 +38,12 @@ namespace Cold_Storage_GO
         public DbSet<Wallet> Wallets { get; set; }
         public DbSet<Redemptions> Redemptions { get; set; }
 
+        // Newly added models
+        public DbSet<Comment> Comments { get; set; }
+        public DbSet<Discussion> Discussions { get; set; }
+        public DbSet<Recipe> Recipes { get; set; }
+        public DbSet<AIRecommendation> AIRecommendations { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -45,28 +52,34 @@ namespace Cold_Storage_GO
             modelBuilder.Entity<Follows>()
                 .HasKey(f => new { f.FollowerId, f.FollowedId });
 
-            // Configure the relationship for Follower
+            // Configure Follows relationships
             modelBuilder.Entity<Follows>()
                 .HasOne(f => f.Follower)
-                .WithMany(f => f.Following)  // A User can follow many others
-                .HasForeignKey(f => f.FollowerId)  // Explicitly define the foreign key
-                .OnDelete(DeleteBehavior.Restrict); // Prevent cascading deletes
+                .WithMany(f => f.Following)
+                .HasForeignKey(f => f.FollowerId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-            // Configure the relationship for Followed
             modelBuilder.Entity<Follows>()
                 .HasOne(f => f.Followed)
-                .WithMany(f => f.Followers)  // A User can have many Followers
-                .HasForeignKey(f => f.FollowedId)  // Explicitly define the foreign key
-                .OnDelete(DeleteBehavior.Restrict); // Prevent cascading deletes
+                .WithMany(f => f.Followers)
+                .HasForeignKey(f => f.FollowedId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-            // Configure the relationship for NutritionalFacts
+            // Configure NutritionalFacts relationships
             modelBuilder.Entity<NutritionalFacts>()
                 .HasOne(nf => nf.Dish)
-                .WithMany() // Optional: Specify if `Dish` has a navigation property
+                .WithMany()
                 .HasForeignKey(nf => nf.DishId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // Configure Comment threading
+            modelBuilder.Entity<Comment>()
+                .HasOne(c => c.ParentComment)
+                .WithMany(c => c.Replies)
+                .HasForeignKey(c => c.ParentCommentId)
+                .OnDelete(DeleteBehavior.Restrict);
 
+            // Additional configurations for Recipes, Discussions, etc., if needed.
         }
     }
 }

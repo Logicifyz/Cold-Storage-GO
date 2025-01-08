@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Negotiate;
-using Microsoft.OpenApi.Models; // Make sure to include this for Swagger
+using Microsoft.OpenApi.Models; // For Swagger
 using Cold_Storage_GO;
 using Cold_Storage_GO.Middleware;
 using Cold_Storage_GO.Services;
@@ -11,11 +11,10 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<DbContexts>();
 builder.Services.AddSingleton<EmailService>();
 
-// Swagger configuration to include the SessionId header
+// Configure Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    // Add the custom SessionId header to Swagger
     c.AddSecurityDefinition("SessionId", new OpenApiSecurityScheme
     {
         In = ParameterLocation.Header,
@@ -25,7 +24,6 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "bearer"
     });
 
-    // Add a security requirement to include the SessionId header in Swagger UI
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -42,21 +40,29 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// Add authentication and authorization
 builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
    .AddNegotiate();
 
 builder.Services.AddAuthorization(options =>
 {
-    // By default, all incoming requests will be authorized according to the default policy.
     options.FallbackPolicy = options.DefaultPolicy;
+});
+
+// Add CORS policy
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", builder =>
+    {
+        builder.WithOrigins("http://localhost:3000") // Add your frontend URL
+               .AllowAnyHeader()
+               .AllowAnyMethod();
+    });
 });
 
 var app = builder.Build();
 
-// Use the custom SessionMiddleware for session validation
-app.UseMiddleware<SessionMiddleware>();
-
-// Configure the HTTP request pipeline.
+// Use middleware in the correct order
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -64,6 +70,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("AllowFrontend"); // Ensure this comes before the custom middleware
+
+app.UseMiddleware<SessionMiddleware>();
 
 app.UseAuthorization();
 

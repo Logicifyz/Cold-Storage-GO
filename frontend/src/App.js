@@ -1,25 +1,33 @@
-import logo from './logo.svg';
-import './App.css';
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import RecipePage from './pages/RecipePage';
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-         Pubor kina pua be toh
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
-}
+const App = () => {
+    return (
+        <Router>
+            <div>
+                <header style={{ padding: '10px', background: '#f8f8f8', marginBottom: '20px' }}>
+                    <h1 style={{ textAlign: 'center' }}>Cold Storage GO!</h1>
+                </header>
+                <main>
+                    <Routes>
+                        {/* Add the route for RecipePage */}
+                        <Route path="/recipes" element={<RecipePage />} />
+                        {/* Default route or other pages can go here */}
+                        <Route
+                            path="/"
+                            element={
+                                <div style={{ textAlign: 'center', padding: '20px' }}>
+                                    <h2>Welcome to Cold Storage GO!</h2>
+                                    <p>Navigate to <a href="/recipes">Recipe Page</a> to test APIs.</p>
+                                </div>
+                            }
+                        />
+                    </Routes>
+                </main>
+            </div>
+        </Router>
+    );
+};
 
 export default App;

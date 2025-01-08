@@ -20,7 +20,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="frontend\pages\" />
     <Folder Include="Migrations\" />
   </ItemGroup>
 
