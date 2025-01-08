@@ -22,7 +22,7 @@ namespace Cold_Storage_GO.Middleware
         public async Task InvokeAsync(HttpContext context)
         {
             var requestPath = context.Request.Path.Value;
-            var excludedPaths = new[] { "/api/Auth", "/swagger", "/api/Account/profile/", "/api/HelpCentre", "/api/MealKit", "/api/Recipes", "/api/deliveries/"};
+            var excludedPaths = new[] { "/api/Auth", "/swagger", "/api/Account/profile/", "/api/HelpCentre", "/api/MealKit", "/api/Recipes", "/api/Deliveries", "/api/Deliveries/", "/api/subscriptions/", "/api/subscriptions", "/api/orders/", "/api/orders" };
 
             // Skip session validation for excluded paths
             if (excludedPaths.Any(path => requestPath.StartsWith(path, StringComparison.OrdinalIgnoreCase)))
