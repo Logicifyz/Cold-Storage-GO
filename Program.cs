@@ -1,11 +1,23 @@
 ﻿using Microsoft.AspNetCore.Authentication.Negotiate;
-using Microsoft.OpenApi.Models; // For Swagger
+using Microsoft.OpenApi.Models; // Make sure to include this for Swagger
 using Cold_Storage_GO;
 using Cold_Storage_GO.Services;
 using Cold_Storage_GO.Middleware;
 using Cold_Storage_GO.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000") // Removed trailing slash
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
 
 // ✅ Register Controllers explicitly
 // Add services to the container.
@@ -60,41 +72,20 @@ builder.Services.AddAuthorization(options =>
 {
     options.FallbackPolicy = options.DefaultPolicy;
 });
-builder.Services.AddAuthorization();
-
-// Add CORS policy
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend", builder =>
-    {
-        builder.WithOrigins("http://localhost:3000") // Add your frontend URL
-               .AllowAnyHeader()
-               .AllowAnyMethod()
-               .AllowCredentials(); // Allows credentials like cookies
-    });
-});
 
 var app = builder.Build();
 
-// ✅ Proper Middleware Order
-app.UseCors("AllowFrontend"); // Ensure this comes first for CORS handling
-
-app.UseHttpsRedirection();
-app.UseAuthentication();
-app.UseAuthorization();
-
-// ✅ Register Controllers in Pipeline
-app.MapControllers();
-
-// ✅ Enable Swagger Only for Development
+// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
+app.UseHttpsRedirection();
+app.UseCors("AllowReactApp"); // CORS middleware must come before Authorization
+app.UseAuthentication();      // Add this if you are using authentication
+app.UseAuthorization();
 app.UseMiddleware<SessionMiddleware>();
-
 app.MapControllers();
-
 app.Run();

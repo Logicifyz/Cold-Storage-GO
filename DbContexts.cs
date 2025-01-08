@@ -31,12 +31,13 @@ namespace Cold_Storage_GO
         public DbSet<SupportTicket> SupportTickets { get; set; }
         public DbSet<StaffSession> StaffSessions { get; set; }
         public DbSet<Article> Articles { get; set; }
-        public DbSet<MealKit> MealKits { get; set; }
+  
         public DbSet<Dish> Dishes { get; set; }
         public DbSet<NutritionalFacts> NutritionalFacts { get; set; }
         public DbSet<Rewards> Rewards { get; set; }
         public DbSet<Wallet> Wallets { get; set; }
         public DbSet<Redemptions> Redemptions { get; set; }
+        public DbSet<MealKit> MealKits { get; set; }
 
         // Newly added models
         public DbSet<Comment> Comments { get; set; }

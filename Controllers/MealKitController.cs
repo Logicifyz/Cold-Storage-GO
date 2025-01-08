@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Cold_Storage_GO.Models;
@@ -42,15 +44,26 @@ namespace Cold_Storage_GO.Controllers
 
         // POST: api/MealKit
         [HttpPost]
-        public async Task<ActionResult<MealKit>> CreateMealKit(MealKit mealKit)
+        public async Task<ActionResult<MealKit>> CreateMealKit([FromForm] MealKitCreateRequest request)
         {
+            byte[]? imageBytes = null;
+            if (request.ListingImage != null)
+            {
+                using var memoryStream = new MemoryStream();
+                await request.ListingImage.CopyToAsync(memoryStream);
+                imageBytes = memoryStream.ToArray();
+            }
+
             var newMealKit = new MealKit
             {
                 MealKitId = Guid.NewGuid(),
-                DishId = mealKit.DishId,
-                Name = mealKit.Name,
-                Price = mealKit.Price,
-                ExpiryDate = mealKit.ExpiryDate.Date // Only include date in dd/MM/yyyy format
+                DishId = request.DishId,
+                Name = request.Name,
+                Price = request.Price,
+                ExpiryDate = request.ExpiryDate,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                ListingImage = imageBytes
             };
 
             _context.MealKits.Add(newMealKit);
@@ -59,14 +72,27 @@ namespace Cold_Storage_GO.Controllers
             return CreatedAtAction(nameof(GetMealKit), new { id = newMealKit.MealKitId }, newMealKit);
         }
 
-
         // PUT: api/MealKit/{id}
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateMealKit(Guid id, MealKit mealKit)
+        public async Task<IActionResult> UpdateMealKit(Guid id, [FromForm] MealKitUpdateRequest request)
         {
-            if (id != mealKit.MealKitId)
+            var mealKit = await _context.MealKits.FindAsync(id);
+            if (mealKit == null)
             {
-                return BadRequest();
+                return NotFound();
+            }
+
+            mealKit.DishId = request.DishId;
+            mealKit.Name = request.Name;
+            mealKit.Price = request.Price;
+            mealKit.ExpiryDate = request.ExpiryDate;
+            mealKit.UpdatedAt = DateTime.UtcNow;
+
+            if (request.ListingImage != null)
+            {
+                using var memoryStream = new MemoryStream();
+                await request.ListingImage.CopyToAsync(memoryStream);
+                mealKit.ListingImage = memoryStream.ToArray();
             }
 
             _context.Entry(mealKit).State = EntityState.Modified;
@@ -110,5 +136,23 @@ namespace Cold_Storage_GO.Controllers
         {
             return _context.MealKits.Any(e => e.MealKitId == id);
         }
+    }
+
+    public class MealKitCreateRequest
+    {
+        public Guid DishId { get; set; }
+        public string Name { get; set; }
+        public int Price { get; set; }
+        public DateTime ExpiryDate { get; set; }
+        public IFormFile? ListingImage { get; set; }
+    }
+
+    public class MealKitUpdateRequest
+    {
+        public Guid DishId { get; set; }
+        public string Name { get; set; }
+        public int Price { get; set; }
+        public DateTime ExpiryDate { get; set; }
+        public IFormFile? ListingImage { get; set; }
     }
 }
