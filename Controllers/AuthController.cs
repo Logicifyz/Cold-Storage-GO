@@ -1,9 +1,12 @@
 ﻿using Cold_Storage_GO;
 using Cold_Storage_GO.Models;
 using Cold_Storage_GO.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
+
+[AllowAnonymous]
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
@@ -74,7 +77,6 @@ public class AuthController : ControllerBase
             PasswordResetToken = null // Initially no reset token
         };
 
-
         // Automatically create wallet for the user
         var wallet = new Wallet
         {
@@ -84,7 +86,6 @@ public class AuthController : ControllerBase
             CoinsRedeemed = 0
         };
 
-     
         // Add User and Profile to the database
         _context.Users.Add(user);
         _context.Wallets.Add(wallet);
@@ -92,6 +93,30 @@ public class AuthController : ControllerBase
         _context.UserAdministration.Add(userAdmin);
 
         await _context.SaveChangesAsync();
+
+        // Create a session for the user by generating a session ID
+        var sessionId = Guid.NewGuid().ToString(); // Generate a unique session ID
+
+        var session = new UserSession
+        {
+            UserSessionId = sessionId,
+            UserId = user.UserId,
+            CreatedAt = DateTime.UtcNow,
+            LastAccessed = DateTime.UtcNow,
+            Data = "{}",
+            IsActive = true
+        };
+
+        _context.UserSessions.Add(session);
+        await _context.SaveChangesAsync();
+        // Set the session ID as a cookie in the response
+        HttpContext.Response.Cookies.Append("SessionId", sessionId, new CookieOptions
+        {
+            HttpOnly = true,    // Make the cookie accessible only through HTTP requests// Ensure the cookie is only sent over HTTPS
+            Secure = false,  // Only if you are not using HTTPS in local development
+            SameSite = SameSiteMode.None,  // Prevent CSRF attacks
+            Expires = DateTime.UtcNow.AddMinutes(30)  // Set an expiration time for the session
+        });
 
         // Send verification email
         var emailSent = await _emailService.SendEmailAsync(
@@ -103,16 +128,17 @@ public class AuthController : ControllerBase
         if (!emailSent)
             return StatusCode(500, "Failed to send verification email.");
 
-        return Ok(new { Message = "Registration successful. Please check your email for verification.", wallet });
+        return Ok(new { success = true, Message = "Registration successful. Please check your email for verification.", wallet });
     }
+
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var user = await _context.Users
-        .Include(u => u.UserProfile)
-        .Include(u => u.UserAdministration)
-        .FirstOrDefaultAsync(u => u.Email == request.Email);
+            .Include(u => u.UserProfile)
+            .Include(u => u.UserAdministration)
+            .FirstOrDefaultAsync(u => u.Email == request.Email);
 
         if (user == null)
         {
@@ -133,14 +159,12 @@ public class AuthController : ControllerBase
             userAdmin.FailedLoginAttempts = 0; // Reset the failed attempts
         }
 
-
         // Check if password is correct
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
             // Increment failed login attempts
             userAdmin.FailedLoginAttempts++;
             userAdmin.LastFailedLogin = DateTime.UtcNow; // Record the time of the failed login attempt
-
 
             // If failed attempts exceed the limit, lock the account
             if (userAdmin.FailedLoginAttempts >= 5)
@@ -152,14 +176,16 @@ public class AuthController : ControllerBase
             return Unauthorized("Invalid email or password.");
         }
 
-
         userAdmin.FailedLoginAttempts = 0;
         userAdmin.LockoutUntil = null; // Clear lockout time
         userAdmin.LastFailedLogin = null; // Clear the last failed login time
 
         await _context.SaveChangesAsync();
+
         // Check for an existing active session
         var existingSession = await _context.UserSessions.FirstOrDefaultAsync(s => s.UserId == user.UserId && s.IsActive);
+
+        string sessionId;
 
         if (existingSession != null)
         {
@@ -168,40 +194,39 @@ public class AuthController : ControllerBase
             _context.UserSessions.Update(existingSession);
             await _context.SaveChangesAsync();
 
-            return Ok(new
+            sessionId = existingSession.UserSessionId;
+        }
+        else
+        {
+            // Create a new session if none exists
+            sessionId = Guid.NewGuid().ToString();
+            var session = new UserSession
             {
-                UserSessionId = existingSession.UserSessionId,
+                UserSessionId = sessionId,
                 UserId = user.UserId,
-                Username = user.Username,
-                Role = user.Role,
-                Profile = new
-                {
-                    user.UserProfile.FullName,
-                    user.UserProfile.PhoneNumber,
-                    user.UserProfile.StreetAddress,
-                    user.UserProfile.PostalCode
-                }
-            });
+                CreatedAt = DateTime.UtcNow,
+                LastAccessed = DateTime.UtcNow,
+                Data = "{}",
+                IsActive = true
+            };
+
+            _context.UserSessions.Add(session);
+            await _context.SaveChangesAsync();
         }
 
-        // Create a new session if none exists
-        var UserSessionId = Guid.NewGuid().ToString();
-        var session = new UserSession
+        // Set the session ID in a cookie
+        HttpContext.Response.Cookies.Append("SessionId", sessionId, new CookieOptions
         {
-            UserSessionId = UserSessionId,
-            UserId = user.UserId,
-            CreatedAt = DateTime.UtcNow,
-            LastAccessed = DateTime.UtcNow,
-            Data = "{}",
-            IsActive = true
-        };
-
-        _context.UserSessions.Add(session);
-        await _context.SaveChangesAsync();
+            HttpOnly = true,    // Make the cookie accessible only through HTTP requests
+            Secure = false,  // Only if you are not using HTTPS in local development
+            SameSite = SameSiteMode.None,  // Prevent CSRF attacks
+            Expires = DateTime.UtcNow.AddMinutes(30)  // Set an expiration time for the session
+        });
 
         return Ok(new
         {
-            UserSessionId = UserSessionId,
+            success = true,
+            UserSessionId = sessionId,
             UserId = user.UserId,
             Username = user.Username,
             Role = user.Role,
@@ -214,6 +239,7 @@ public class AuthController : ControllerBase
             }
         });
     }
+
 
     [HttpPost("request-password-reset")]
     public async Task<IActionResult> RequestPasswordReset([FromBody] PasswordResetRequest request)
@@ -289,15 +315,23 @@ public class AuthController : ControllerBase
     [HttpPost("request-verification-email")]
     public async Task<IActionResult> RequestVerificationEmail([FromBody] VerificationEmailRequest request)
     {
-        // Check if the user is logged in by verifying their session
-        var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.UserSessionId == request.UserSessionId && s.IsActive);
+        // Retrieve the session ID from the cookies
+        var sessionId = Request.Cookies["SessionId"];
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            return Unauthorized("User is not logged in or session has expired.");
+        }
+
+        // Check if the session is valid and active
+        var session = await _context.UserSessions
+            .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
 
         if (session == null)
         {
             return Unauthorized("User is not logged in or session has expired.");
         }
 
-        // Retrieve the user related to the session
+        // Retrieve the user related to the session and validate the email
         var userAdmin = await _context.UserAdministration
             .Include(ua => ua.User)
             .FirstOrDefaultAsync(ua => ua.User.Email == request.Email);
@@ -412,10 +446,10 @@ public class AuthController : ControllerBase
         [Compare("Password", ErrorMessage = "Password and confirm password do not match.")]
         public string ConfirmPassword { get; set; }
 
-        public string FullName { get; set; }
-        public string PhoneNumber { get; set; }
-        public string StreetAddress { get; set; }
-        public string PostalCode { get; set; }
+        public string? FullName { get; set; }
+        public string? PhoneNumber { get; set; }
+        public string? StreetAddress { get; set; }
+        public string? PostalCode { get; set; }
     }
 
     public class LoginRequest
@@ -455,9 +489,6 @@ public class AuthController : ControllerBase
         [Required(ErrorMessage = "Email is required.")]
         [EmailAddress(ErrorMessage = "Invalid email format.")]
         public string Email { get; set; }
-
-        [Required(ErrorMessage = "Session ID is required.")]
-        public string UserSessionId { get; set; }
     }
 }
     
