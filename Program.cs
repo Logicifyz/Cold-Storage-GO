@@ -69,13 +69,16 @@ builder.Services.AddCors(options =>
     {
         builder.WithOrigins("http://localhost:3000") // Add your frontend URL
                .AllowAnyHeader()
-               .AllowAnyMethod();
+               .AllowAnyMethod()
+               .AllowCredentials(); // Allows credentials like cookies
     });
 });
 
 var app = builder.Build();
 
 // ✅ Proper Middleware Order
+app.UseCors("AllowFrontend"); // Ensure this comes first for CORS handling
+
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -90,13 +93,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-
-app.UseCors("AllowFrontend"); // Ensure this comes before the custom middleware
-
 app.UseMiddleware<SessionMiddleware>();
-
-app.UseAuthorization();
 
 app.MapControllers();
 
