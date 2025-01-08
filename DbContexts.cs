@@ -43,6 +43,9 @@ namespace Cold_Storage_GO
         public DbSet<Discussion> Discussions { get; set; }
         public DbSet<Recipe> Recipes { get; set; }
         public DbSet<AIRecommendation> AIRecommendations { get; set; }
+        public DbSet<Subscription> Subscriptions { get; set; }
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<Delivery> Deliveries { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

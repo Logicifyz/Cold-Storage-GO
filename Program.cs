@@ -1,14 +1,25 @@
-using Microsoft.AspNetCore.Authentication.Negotiate;
+﻿using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.OpenApi.Models; // For Swagger
 using Cold_Storage_GO;
+using Cold_Storage_GO.Services;
 using Cold_Storage_GO.Middleware;
 using Cold_Storage_GO.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ✅ Register Controllers explicitly
 // Add services to the container.
 builder.Services.AddControllers();
+
+// ✅ Register DbContext for MySQL (Ensure Proper Setup)
 builder.Services.AddDbContext<DbContexts>();
+
+// ✅ Register Services
+builder.Services.AddScoped<SubscriptionService>();
+builder.Services.AddScoped<OrderService>();
+builder.Services.AddScoped<DeliveryService>();
+
+// ✅ Swagger Setup
 builder.Services.AddSingleton<EmailService>();
 
 // Configure Swagger
@@ -41,6 +52,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Add authentication and authorization
+// ✅ Authentication and Authorization Setup
 builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
    .AddNegotiate();
 
@@ -48,6 +60,7 @@ builder.Services.AddAuthorization(options =>
 {
     options.FallbackPolicy = options.DefaultPolicy;
 });
+builder.Services.AddAuthorization();
 
 // Add CORS policy
 builder.Services.AddCors(options =>
@@ -62,7 +75,15 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Use middleware in the correct order
+// ✅ Proper Middleware Order
+app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
+
+// ✅ Register Controllers in Pipeline
+app.MapControllers();
+
+// ✅ Enable Swagger Only for Development
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
