@@ -19,5 +19,6 @@ namespace Cold_Storage_GO.Models
         public DateTime CreatedAt { get; set; }
         [Column(TypeName = "datetime")]
         public DateTime UpdatedAt { get; set; }
+        public byte[]? ListingImage { get; set; }  // Stores the Image as a Blob (byte array)
     }
 }

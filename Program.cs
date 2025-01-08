@@ -1,21 +1,31 @@
 using Microsoft.AspNetCore.Authentication.Negotiate;
-using Microsoft.OpenApi.Models; // Make sure to include this for Swagger
+using Microsoft.OpenApi.Models;
 using Cold_Storage_GO;
 using Cold_Storage_GO.Middleware;
 using Cold_Storage_GO.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Add services to the container
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000") // Removed trailing slash
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 builder.Services.AddControllers();
 builder.Services.AddDbContext<DbContexts>();
 builder.Services.AddSingleton<EmailService>();
 
-// Swagger configuration to include the SessionId header
+// Swagger configuration
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    // Add the custom SessionId header to Swagger
     c.AddSecurityDefinition("SessionId", new OpenApiSecurityScheme
     {
         In = ParameterLocation.Header,
@@ -25,7 +35,6 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "bearer"
     });
 
-    // Add a security requirement to include the SessionId header in Swagger UI
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -47,16 +56,12 @@ builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization(options =>
 {
-    // By default, all incoming requests will be authorized according to the default policy.
     options.FallbackPolicy = options.DefaultPolicy;
 });
 
 var app = builder.Build();
 
-// Use the custom SessionMiddleware for session validation
-app.UseMiddleware<SessionMiddleware>();
-
-// Configure the HTTP request pipeline.
+// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -64,9 +69,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
+app.UseCors("AllowReactApp"); // CORS middleware must come before Authorization
+app.UseAuthentication();      // Add this if you are using authentication
 app.UseAuthorization();
-
+app.UseMiddleware<SessionMiddleware>();
 app.MapControllers();
-
 app.Run();
