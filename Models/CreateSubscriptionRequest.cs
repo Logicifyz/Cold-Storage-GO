@@ -8,4 +8,6 @@ public class CreateSubscriptionRequest
     public bool AutoRenewal { get; set; }
     public string DeliveryTimeSlot { get; set; } // Fixed error
     public string SubscriptionType { get; set; } // Fixed error (Monthly/Weekly)
+    public string SubscriptionChoice { get; set; }  // New field added here
+
 }

@@ -12,4 +12,6 @@ public class Subscription
     public string DeliveryTimeSlot { get; set; }  // Fixed error
     public string SubscriptionType { get; set; }  // Fixed error
     public bool IsFrozen { get; set; }  // Fixed error
+    public string SubscriptionChoice { get; set; }  // New field added
+
 }

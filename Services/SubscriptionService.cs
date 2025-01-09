@@ -12,8 +12,8 @@ namespace Cold_Storage_GO.Services
             _context = context;
         }
 
-        // ✅ User Creates a Subscription
-        public async Task CreateSubscriptionAsync(Guid userId, Guid mealKitId, int frequency, string deliveryTimeSlot, string subscriptionType)
+        // ✅ Updated: Now includes SubscriptionChoice
+        public async Task CreateSubscriptionAsync(Guid userId, Guid mealKitId, int frequency, string deliveryTimeSlot, string subscriptionType, string subscriptionChoice)
         {
             var subscription = new Subscription
             {
@@ -23,6 +23,7 @@ namespace Cold_Storage_GO.Services
                 Frequency = frequency,
                 DeliveryTimeSlot = deliveryTimeSlot,
                 SubscriptionType = subscriptionType,
+                SubscriptionChoice = subscriptionChoice,  // New field added
                 StartDate = DateTime.UtcNow,
                 EndDate = DateTime.UtcNow.AddDays(frequency * 7)
             };
@@ -51,6 +52,14 @@ namespace Cold_Storage_GO.Services
             await _context.SaveChangesAsync();
         }
 
+        // ✅ New: Get Subscriptions by SubscriptionChoice
+        public async Task<IEnumerable<Subscription>> GetSubscriptionsByChoiceAsync(string subscriptionChoice)
+        {
+            return await _context.Subscriptions
+                .Where(s => s.SubscriptionChoice == subscriptionChoice)
+                .ToListAsync();
+        }
+
         // ✅ Staff Management: Get All Subscriptions
         public async Task<IEnumerable<Subscription>> GetAllSubscriptionsAsync()
         {
@@ -65,7 +74,7 @@ namespace Cold_Storage_GO.Services
                 .ToListAsync();
         }
 
-        // ✅ Staff Management: Search Subscriptions (by User ID)
+        // ✅ Staff Management: Search Subscriptions by User ID
         public async Task<IEnumerable<Subscription>> SearchSubscriptionsAsync(string query)
         {
             return await _context.Subscriptions
