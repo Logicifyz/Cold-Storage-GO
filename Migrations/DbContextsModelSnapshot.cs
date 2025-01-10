@@ -206,11 +206,6 @@ namespace Cold_Storage_GO.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
-                    b.Property<string>("Tags")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
                     b.Property<Guid?>("UserId")
                         .HasColumnType("char(36)");
 
@@ -256,11 +251,14 @@ namespace Cold_Storage_GO.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("Price")
                         .HasColumnType("int");
+
+                    b.Property<string>("TagsSerialized")
+                        .HasColumnType("longtext")
+                        .HasColumnName("Tags");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime");

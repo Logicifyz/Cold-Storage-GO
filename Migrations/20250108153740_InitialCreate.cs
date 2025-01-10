@@ -139,7 +139,9 @@ namespace Cold_Storage_GO.Migrations
                     Price = table.Column<int>(type: "int", nullable: false),
                     ExpiryDate = table.Column<DateTime>(type: "datetime", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime", nullable: false)
+                    UpdatedAt = table.Column<DateTime>(type: "datetime", nullable: false),
+                    ListingImage = table.Column<byte[]>(type: "longblob", nullable: true),
+                    Tags = table.Column<string>(type: "longtext", nullable: true)
                 },
                 constraints: table =>
                 {

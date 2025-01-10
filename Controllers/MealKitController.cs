@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Cold_Storage_GO.Models;
 using Microsoft.AspNetCore.Authorization;
+using System.ComponentModel.DataAnnotations;
 
 namespace Cold_Storage_GO.Controllers
 {
@@ -65,7 +66,8 @@ namespace Cold_Storage_GO.Controllers
                 ExpiryDate = request.ExpiryDate,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
-                ListingImage = imageBytes
+                ListingImage = imageBytes,
+                Tags = request.Tags
             };
 
             _context.MealKits.Add(newMealKit);
@@ -89,6 +91,7 @@ namespace Cold_Storage_GO.Controllers
             mealKit.Price = request.Price;
             mealKit.ExpiryDate = request.ExpiryDate;
             mealKit.UpdatedAt = DateTime.UtcNow;
+            mealKit.Tags = request.Tags;
 
             if (request.ListingImage != null)
             {
@@ -142,12 +145,24 @@ namespace Cold_Storage_GO.Controllers
 
     public class MealKitCreateRequest
     {
+        [Required(ErrorMessage = "DishId is required.")]
         public Guid DishId { get; set; }
+
+        [Required(ErrorMessage = "Name is required.")]
+        [StringLength(100, ErrorMessage = "Name length cannot exceed 100 characters.")]
         public string Name { get; set; }
+
+        [Required(ErrorMessage = "Price is required.")]
+        [Range(1, int.MaxValue, ErrorMessage = "Price must be a positive number.")]
         public int Price { get; set; }
+
+        [Required(ErrorMessage = "ExpiryDate is required.")]
         public DateTime ExpiryDate { get; set; }
+
         public IFormFile? ListingImage { get; set; }
+        public List<string>? Tags { get; set; }
     }
+
 
     public class MealKitUpdateRequest
     {
@@ -156,5 +171,7 @@ namespace Cold_Storage_GO.Controllers
         public int Price { get; set; }
         public DateTime ExpiryDate { get; set; }
         public IFormFile? ListingImage { get; set; }
+        public List<string>? Tags { get; set; } // New property for tags
     }
 }
+    

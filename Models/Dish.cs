@@ -25,8 +25,7 @@ namespace Cold_Storage_GO.Models
         [StringLength(100)]
         public string Instructions { get; set; } // Required
 
-        [StringLength(100)]
-        public string Tags { get; set; } // Nullable
+     
     }
 
     
