@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace Cold_Storage_GO.Controllers
 {
+    [AllowAnonymous]
     [ApiController]
     [Route("api/subscriptions")]
     public class SubscriptionsController : ControllerBase
@@ -16,10 +17,18 @@ namespace Cold_Storage_GO.Controllers
             _subscriptionService = subscriptionService;
         }
 
+        // ✅ Updated: Now includes SubscriptionChoice
         [HttpPost]
         public async Task<IActionResult> CreateSubscription(CreateSubscriptionRequest request)
         {
-            await _subscriptionService.CreateSubscriptionAsync(request.UserId, request.MealKitId, request.Frequency, request.DeliveryTimeSlot, request.SubscriptionType);
+            await _subscriptionService.CreateSubscriptionAsync(
+                request.UserId,
+                request.MealKitId,
+                request.Frequency,
+                request.DeliveryTimeSlot,
+                request.SubscriptionType,
+                request.SubscriptionChoice // New field added here
+            );
             return Ok("Subscription created successfully");
         }
 
@@ -37,7 +46,19 @@ namespace Cold_Storage_GO.Controllers
             return Ok("Subscription canceled");
         }
 
-        // New: Staff GET for all subscriptions
+        // ✅ New: Get Subscriptions by SubscriptionChoice
+        [HttpGet("choice/{subscriptionChoice}")]
+        public async Task<IActionResult> GetSubscriptionsByChoice(string subscriptionChoice)
+        {
+            var subscriptions = await _subscriptionService.GetSubscriptionsByChoiceAsync(subscriptionChoice);
+            if (!subscriptions.Any())
+            {
+                return NotFound("No subscriptions found with this choice.");
+            }
+            return Ok(subscriptions);
+        }
+
+        // ✅ Staff Management: Get All Subscriptions
         [HttpGet("staff/all")]
         public async Task<IActionResult> GetAllSubscriptions()
         {
@@ -48,7 +69,6 @@ namespace Cold_Storage_GO.Controllers
         [HttpGet("staff/status/{status}")]
         public async Task<IActionResult> GetSubscriptionsByStatus(string status)
         {
-            // Ensure the input is properly converted to a boolean
             if (!bool.TryParse(status, out bool isFrozenBool))
             {
                 return BadRequest("Invalid input. Please use 'true' or 'false' for the subscription status.");
@@ -57,7 +77,6 @@ namespace Cold_Storage_GO.Controllers
             var subscriptions = await _subscriptionService.GetSubscriptionsByStatusAsync(isFrozenBool);
             return Ok(subscriptions);
         }
-
 
         [HttpGet("staff/search")]
         public async Task<IActionResult> SearchSubscriptions([FromQuery] string query)
