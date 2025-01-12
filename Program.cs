@@ -2,51 +2,12 @@
 using Microsoft.OpenApi.Models;
 using Cold_Storage_GO;
 using Cold_Storage_GO.Services;
-<<<<<<< Updated upstream
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ✅ Register Controllers explicitly
-=======
-using Cold_Storage_GO.Middleware;
-using Cold_Storage_GO.Models;
-using Microsoft.EntityFrameworkCore;
-using Stripe;
-
-var builder = WebApplication.CreateBuilder(args);
-
-builder.Logging.AddConsole();
-
-// ✅ Correct way to initialize Stripe without namespace conflicts
-builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
-
-
-// ✅ Register Services Explicitly to Prevent Conflicts
-builder.Services.AddDbContext<DbContexts>();
-builder.Services.AddScoped<OrderService>();
-builder.Services.AddScoped<DeliveryService>();
-builder.Services.AddSingleton<EmailService>();
-builder.Logging.AddConsole();
-
-
-// ✅ CORS Setup for React Frontend Integration
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowReactApp", policy =>
-    {
-        policy.WithOrigins("http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
-});
-
-// ✅ Register Controllers
->>>>>>> Stashed changes
 builder.Services.AddControllers();
-builder.Services.AddScoped<Cold_Storage_GO.Services.SubscriptionService>();
 
-<<<<<<< Updated upstream
 // ✅ Register DbContext for MySQL (Ensure Proper Setup)
 builder.Services.AddDbContext<DbContexts>();
 
@@ -56,9 +17,6 @@ builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<DeliveryService>();
 
 // ✅ Swagger Setup
-=======
-// ✅ Swagger Configuration with Security Definition for Session Tokens
->>>>>>> Stashed changes
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -86,20 +44,14 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-<<<<<<< Updated upstream
 // ✅ Authentication and Authorization Setup
-=======
-// ✅ Authentication Setup
->>>>>>> Stashed changes
 builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
    .AddNegotiate();
 
 builder.Services.AddAuthorization();
 
-// ✅ Middleware Pipeline
 var app = builder.Build();
 
-<<<<<<< Updated upstream
 // ✅ Proper Middleware Order
 app.UseHttpsRedirection();
 app.UseAuthentication();
@@ -109,21 +61,10 @@ app.UseAuthorization();
 app.MapControllers();
 
 // ✅ Enable Swagger Only for Development
-=======
->>>>>>> Stashed changes
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-<<<<<<< Updated upstream
 
-=======
-app.UseHttpsRedirection();
-app.UseCors("AllowReactApp");
-app.UseAuthentication();
-app.UseAuthorization();
-app.UseMiddleware<SessionMiddleware>();
-app.MapControllers();
->>>>>>> Stashed changes
 app.Run();
