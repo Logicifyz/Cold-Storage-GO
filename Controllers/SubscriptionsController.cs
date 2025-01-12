@@ -18,9 +18,6 @@ namespace Cold_Storage_GO.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateSubscription(CreateSubscriptionRequest request)
         {
-<<<<<<< Updated upstream
-            await _subscriptionService.CreateSubscriptionAsync(request.UserId, request.MealKitId, request.Frequency, request.DeliveryTimeSlot, request.SubscriptionType);
-=======
             await _subscriptionService.CreateSubscriptionAsync(
                 request.UserId,
                 request.MealKitId,
@@ -30,7 +27,6 @@ namespace Cold_Storage_GO.Controllers
                 request.SubscriptionChoice, // New field added here
                 request.Price
             );
->>>>>>> Stashed changes
             return Ok("Subscription created successfully");
         }
 

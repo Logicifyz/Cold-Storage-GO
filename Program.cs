@@ -2,12 +2,6 @@
 using Microsoft.OpenApi.Models;
 using Cold_Storage_GO;
 using Cold_Storage_GO.Services;
-<<<<<<< Updated upstream
-
-var builder = WebApplication.CreateBuilder(args);
-
-// ✅ Register Controllers explicitly
-=======
 using Cold_Storage_GO.Middleware;
 using Cold_Storage_GO.Models;
 using Microsoft.EntityFrameworkCore;
@@ -42,23 +36,10 @@ builder.Services.AddCors(options =>
 });
 
 // ✅ Register Controllers
->>>>>>> Stashed changes
 builder.Services.AddControllers();
 builder.Services.AddScoped<Cold_Storage_GO.Services.SubscriptionService>();
 
-<<<<<<< Updated upstream
-// ✅ Register DbContext for MySQL (Ensure Proper Setup)
-builder.Services.AddDbContext<DbContexts>();
-
-// ✅ Register Services
-builder.Services.AddScoped<SubscriptionService>();
-builder.Services.AddScoped<OrderService>();
-builder.Services.AddScoped<DeliveryService>();
-
-// ✅ Swagger Setup
-=======
 // ✅ Swagger Configuration with Security Definition for Session Tokens
->>>>>>> Stashed changes
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -86,11 +67,7 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-<<<<<<< Updated upstream
-// ✅ Authentication and Authorization Setup
-=======
 // ✅ Authentication Setup
->>>>>>> Stashed changes
 builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
    .AddNegotiate();
 
@@ -99,31 +76,15 @@ builder.Services.AddAuthorization();
 // ✅ Middleware Pipeline
 var app = builder.Build();
 
-<<<<<<< Updated upstream
-// ✅ Proper Middleware Order
-app.UseHttpsRedirection();
-app.UseAuthentication();
-app.UseAuthorization();
-
-// ✅ Register Controllers in Pipeline
-app.MapControllers();
-
-// ✅ Enable Swagger Only for Development
-=======
->>>>>>> Stashed changes
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-<<<<<<< Updated upstream
-
-=======
 app.UseHttpsRedirection();
 app.UseCors("AllowReactApp");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<SessionMiddleware>();
 app.MapControllers();
->>>>>>> Stashed changes
 app.Run();

@@ -7,10 +7,7 @@ public class CreateSubscriptionRequest
     public int Frequency { get; set; } // Frequency in days
     public string DeliveryTimeSlot { get; set; } // Fixed error
     public string SubscriptionType { get; set; } // Fixed error (Monthly/Weekly)
-<<<<<<< Updated upstream
-=======
     public string SubscriptionChoice { get; set; }  // New field added here
     public decimal Price { get; set; }
->>>>>>> Stashed changes
 }
 

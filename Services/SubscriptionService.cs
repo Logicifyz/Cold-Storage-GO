@@ -12,28 +12,6 @@ namespace Cold_Storage_GO.Services
             _context = context;
         }
 
-<<<<<<< Updated upstream
-        // ✅ User Creates a Subscription
-        public async Task CreateSubscriptionAsync(Guid userId, Guid mealKitId, int frequency, string deliveryTimeSlot, string subscriptionType)
-        {
-            var subscription = new Subscription
-            {
-                SubscriptionId = Guid.NewGuid(),
-                UserId = userId,
-                MealKitId = mealKitId,
-                Frequency = frequency,
-                DeliveryTimeSlot = deliveryTimeSlot,
-                SubscriptionType = subscriptionType,
-                StartDate = DateTime.UtcNow,
-                EndDate = DateTime.UtcNow.AddDays(frequency * 7)
-            };
-
-            _context.Subscriptions.Add(subscription);
-            await _context.SaveChangesAsync();
-        }
-
-=======
->>>>>>> Stashed changes
         // ✅ Staff Freezes a Subscription
         public async Task FreezeSubscriptionAsync(Guid subscriptionId)
         {

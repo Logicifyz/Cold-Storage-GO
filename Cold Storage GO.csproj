@@ -19,17 +19,9 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
-<<<<<<< Updated upstream
-  <ItemGroup>
-    <Folder Include="Controllers\" />
-    <Folder Include="Migrations\" />
-    <Folder Include="Models\" />
-  </ItemGroup>
-=======
 	<ItemGroup>
 		<Folder Include="Controllers\" />
 		<Folder Include="Migrations\" />
 	</ItemGroup>
->>>>>>> Stashed changes
 
 </Project>
