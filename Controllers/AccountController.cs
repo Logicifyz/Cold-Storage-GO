@@ -1,11 +1,13 @@
 ﻿using Cold_Storage_GO.Models;
 using Cold_Storage_GO.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 
 namespace Cold_Storage_GO.Controllers
 {
+    [AllowAnonymous]
     [ApiController]
     [Route("api/[controller]")]
     public class AccountController : ControllerBase
@@ -23,7 +25,16 @@ namespace Cold_Storage_GO.Controllers
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
         {
             // Check if the session exists and is active
-            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == HttpContext.Request.Headers["SessionId"]);
+            var sessionId = HttpContext.Request.Cookies["SessionId"];
+
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                return Unauthorized("Session not found.");
+            }
+
+            // Check if the session exists and is active
+            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == sessionId);
+
             if (session == null)
             {
                 return Unauthorized("Session expired or not found.");
@@ -70,8 +81,18 @@ namespace Cold_Storage_GO.Controllers
         [HttpDelete("delete-account")]
         public async Task<IActionResult> DeleteAccount()
         {
+            // Try to get SessionId from request headers first
+            var sessionId = HttpContext.Request.Cookies["SessionId"];
+
+
+
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                return Unauthorized("Session expired or not found.");
+            }
+
             // Get the currently authenticated user based on the session
-            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == HttpContext.Request.Headers["SessionId"]);
+            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == sessionId);
             if (session == null)
             {
                 return Unauthorized("Session expired or not found.");
@@ -111,6 +132,7 @@ namespace Cold_Storage_GO.Controllers
 
             return Ok(new { Message = "Account and all associated data deleted successfully." });
         }
+
 
         [HttpPut("update-profile")]
         public async Task<IActionResult> UpdateProfile([FromForm] UpdateProfileRequest request)

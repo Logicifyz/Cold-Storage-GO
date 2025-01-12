@@ -113,7 +113,7 @@ public class AuthController : ControllerBase
         CookieService.SetCookie(HttpContext, "SessionId", sessionId);
 
         // Send verification email
-        var verificationUrl = $"{Request.Scheme}://localhost:3002/verify-account/{userAdmin.VerificationToken}";
+        var verificationUrl = $"{Request.Scheme}://localhost:3000/verify-account/{userAdmin.VerificationToken}";
 
         // Send the verification email with the URL
         var emailSent = await _emailService.SendEmailAsync(
@@ -256,7 +256,7 @@ public class AuthController : ControllerBase
 
         _context.UserAdministration.Update(userAdmin);
         await _context.SaveChangesAsync();
-        var verificationUrl = $"{Request.Scheme}://localhost:3002/resetpassword/{userAdmin.PasswordResetToken}";
+        var verificationUrl = $"{Request.Scheme}://localhost:3000/resetpassword/{userAdmin.PasswordResetToken}";
 
         // Send the password reset token via email
         var emailSent = await _emailService.SendEmailAsync(
@@ -358,7 +358,7 @@ public class AuthController : ControllerBase
         await _context.SaveChangesAsync();
 
         // Send the verification email
-        var verificationUrl = $"{Request.Scheme}://{Request.Host}/verify-account/{userAdmin.VerificationToken}";
+        var verificationUrl = $"{Request.Scheme}://localhost:3000/verify-account/{userAdmin.VerificationToken}";
 
         // Send the verification email with the URL
         var emailSent = await _emailService.SendEmailAsync(
