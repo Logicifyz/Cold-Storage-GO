@@ -15,6 +15,7 @@ namespace Cold_Storage_GO.Controllers
         {
             _dbContext = dbContext;
         }
+
         [HttpPost]
         public async Task<IActionResult> AddToCart(Guid mealKitId, int quantity)
         {
@@ -23,7 +24,7 @@ namespace Cold_Storage_GO.Controllers
                 return BadRequest("Quantity must be greater than zero.");
             }
 
-            var sessionId = Request.Headers["SessionId"].ToString();
+            var sessionId = Request.Cookies["SessionId"];
             if (string.IsNullOrEmpty(sessionId))
             {
                 return Unauthorized("Session ID is missing.");
@@ -89,12 +90,10 @@ namespace Cold_Storage_GO.Controllers
             }
         }
 
-
-
         [HttpGet("view-cart")]
         public async Task<IActionResult> ViewCart()
         {
-            var sessionId = Request.Headers["SessionId"].ToString();
+            var sessionId = Request.Cookies["SessionId"];
             if (string.IsNullOrEmpty(sessionId))
             {
                 return Unauthorized("Session ID is missing.");

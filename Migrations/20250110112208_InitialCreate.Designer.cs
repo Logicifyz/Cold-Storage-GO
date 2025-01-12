@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cold_Storage_GO.Migrations
 {
     [DbContext(typeof(DbContexts))]
-    [Migration("20250110104632_removedtagsfromdish")]
-    partial class removedtagsfromdish
+    [Migration("20250110112208_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -564,6 +564,10 @@ namespace Cold_Storage_GO.Migrations
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<string>("SubscriptionChoice")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<string>("SubscriptionType")
                         .IsRequired()

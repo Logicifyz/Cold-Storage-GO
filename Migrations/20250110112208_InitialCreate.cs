@@ -120,8 +120,7 @@ namespace Cold_Storage_GO.Migrations
                     MealKitId = table.Column<Guid>(type: "char(36)", nullable: true),
                     Name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false),
                     Ingredients = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false),
-                    Instructions = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false),
-                    Tags = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Instructions = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -135,7 +134,7 @@ namespace Cold_Storage_GO.Migrations
                 {
                     MealKitId = table.Column<Guid>(type: "char(36)", nullable: false),
                     DishId = table.Column<Guid>(type: "char(36)", nullable: false),
-                    Name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false),
+                    Name = table.Column<string>(type: "longtext", nullable: false),
                     Price = table.Column<int>(type: "int", nullable: false),
                     ExpiryDate = table.Column<DateTime>(type: "datetime", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime", nullable: false),
@@ -275,7 +274,8 @@ namespace Cold_Storage_GO.Migrations
                     AutoRenewal = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     DeliveryTimeSlot = table.Column<string>(type: "longtext", nullable: false),
                     SubscriptionType = table.Column<string>(type: "longtext", nullable: false),
-                    IsFrozen = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                    IsFrozen = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    SubscriptionChoice = table.Column<string>(type: "longtext", nullable: false)
                 },
                 constraints: table =>
                 {

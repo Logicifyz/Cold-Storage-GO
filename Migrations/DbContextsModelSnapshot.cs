@@ -562,6 +562,10 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("SubscriptionChoice")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<string>("SubscriptionType")
                         .IsRequired()
                         .HasColumnType("longtext");
