@@ -27,7 +27,8 @@ namespace Cold_Storage_GO.Controllers
                 request.Frequency,
                 request.DeliveryTimeSlot,
                 request.SubscriptionType,
-                request.SubscriptionChoice // New field added here
+                request.SubscriptionChoice, // New field added here
+                request.Price
             );
             return Ok("Subscription created successfully");
         }
@@ -84,5 +85,13 @@ namespace Cold_Storage_GO.Controllers
             var subscriptions = await _subscriptionService.SearchSubscriptionsAsync(query);
             return Ok(subscriptions);
         }
+
+        [HttpPut("update/{subscriptionId}")]
+        public async Task<IActionResult> UpdateSubscription(Guid subscriptionId, [FromBody] UpdateSubscriptionRequest request)
+        {
+            await _subscriptionService.UpdateSubscriptionStatusAsync(subscriptionId, request);
+            return Ok("Subscription updated successfully");
+        }
+
     }
 }

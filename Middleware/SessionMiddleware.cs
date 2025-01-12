@@ -26,7 +26,7 @@ namespace Cold_Storage_GO.Middleware
         public async Task InvokeAsync(HttpContext context)
         {
             var requestPath = context.Request.Path.Value;
-            var excludedPaths = new[] { "/api/Auth", "/swagger", "/api/Account/profile/", "/api/HelpCentre", "/api/MealKit", "/api/Recipes", "/api/deliveries", "/api/deliveries/", "/api/subscriptions", "/api/subscriptions/", "/api/orders", "/api/orders/" };
+            var excludedPaths = new[] { "/api/Auth", "/swagger", "/api/Account/profile/", "/api/HelpCentre", "/api/MealKit", "/api/Recipes", "/api/deliveries", "/api/deliveries/", "/api/subscriptions", "/api/subscriptions/", "/api/orders", "/api/orders/", "/api/stripe", "/api/stripe/", "/api/stripe/create-checkout-session", "/api/stripe/webhook", "/api/stripe/webhook/" };
 
             // Log the request path and session ID for debugging
             _logger.LogInformation("Request Path: {RequestPath}", requestPath);
@@ -166,7 +166,7 @@ namespace Cold_Storage_GO.Middleware
                     {
                         HttpOnly = true,
                         Secure = true,
-                        SameSite = SameSiteMode.Lax,
+                        SameSite = SameSiteMode.Strict,
                         Expires = DateTime.UtcNow.AddMinutes(30)
                     });
 
