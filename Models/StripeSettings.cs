@@ -1,4 +1,5 @@
 ﻿namespace Cold_Storage_GO.Models
+
 {
     public class StripeSettings
     {

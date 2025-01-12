@@ -4,6 +4,7 @@ using Cold_Storage_GO;
 using Cold_Storage_GO.Services;
 using Cold_Storage_GO.Middleware;
 using Cold_Storage_GO.Services;
+using Cold_Storage_GO.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
