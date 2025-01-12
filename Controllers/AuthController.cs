@@ -110,13 +110,7 @@ public class AuthController : ControllerBase
         _context.UserSessions.Add(session);
         await _context.SaveChangesAsync();
         // Set the session ID as a cookie in the response
-        HttpContext.Response.Cookies.Append("SessionId", sessionId, new CookieOptions
-        {
-            HttpOnly = true,    // Make the cookie accessible only through HTTP requests// Ensure the cookie is only sent over HTTPS
-            Secure = true,  // Only if you are not using HTTPS in local development
-            SameSite = SameSiteMode.None,  // Prevent CSRF attacks
-            Expires = DateTime.UtcNow.AddMinutes(30)  // Set an expiration time for the session
-        });
+        CookieService.SetCookie(HttpContext, "SessionId", sessionId);
 
         // Send verification email
         var verificationUrl = $"{Request.Scheme}://localhost:3002/verify-account/{userAdmin.VerificationToken}";
@@ -223,13 +217,8 @@ public class AuthController : ControllerBase
         }
 
         // Set the session ID in a cookie
-        HttpContext.Response.Cookies.Append("SessionId", sessionId, new CookieOptions
-        {
-            HttpOnly = true,    // Make the cookie accessible only through HTTP requests
-            Secure = true,  // Only if you are not using HTTPS in local development
-            SameSite = SameSiteMode.None,  // Prevent CSRF attacks
-            Expires = DateTime.UtcNow.AddMinutes(30)  // Set an expiration time for the session
-        });
+        CookieService.SetCookie(HttpContext, "SessionId", sessionId);
+
 
         return Ok(new
         {
