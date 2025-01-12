@@ -12,6 +12,7 @@ namespace Cold_Storage_GO.Services
             _context = context;
         }
 
+<<<<<<< Updated upstream
         // ✅ User Creates a Subscription
         public async Task CreateSubscriptionAsync(Guid userId, Guid mealKitId, int frequency, string deliveryTimeSlot, string subscriptionType)
         {
@@ -31,6 +32,8 @@ namespace Cold_Storage_GO.Services
             await _context.SaveChangesAsync();
         }
 
+=======
+>>>>>>> Stashed changes
         // ✅ Staff Freezes a Subscription
         public async Task FreezeSubscriptionAsync(Guid subscriptionId)
         {
@@ -72,5 +75,60 @@ namespace Cold_Storage_GO.Services
                 .Where(s => s.UserId.ToString().Contains(query))
                 .ToListAsync();
         }
+        public async Task CreateSubscriptionAsync(Guid userId, Guid mealKitId, int frequency, string deliveryTimeSlot, string subscriptionType, string subscriptionChoice, decimal price)
+        {
+            var subscription = new Subscription
+            {
+                SubscriptionId = Guid.NewGuid(),
+                UserId = userId,
+                MealKitId = mealKitId,
+                Frequency = frequency,
+                DeliveryTimeSlot = deliveryTimeSlot,
+                SubscriptionType = subscriptionType,
+                SubscriptionChoice = subscriptionChoice,
+                Price = price,
+                StartDate = DateTime.UtcNow,
+                EndDate = DateTime.UtcNow.AddDays(frequency * 7),
+
+                // ✅ Set default values for nullable fields during creation
+                AutoRenewal = false,
+                IsFrozen = false,
+                StripeSessionId = Guid.NewGuid().ToString()
+            };
+
+            try
+            {
+                _context.Subscriptions.Add(subscription);
+                var result = await _context.SaveChangesAsync();
+
+                if (result <= 0)
+                {
+                    throw new Exception("Database write failed: No rows affected.");
+                }
+
+                Console.WriteLine("✅ Subscription successfully saved to the database.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Database Error: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task UpdateSubscriptionStatusAsync(Guid subscriptionId, UpdateSubscriptionRequest request)
+        {
+            var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
+            if (subscription == null) throw new Exception("Subscription not found.");
+
+            if (request.AutoRenewal.HasValue)
+                subscription.AutoRenewal = request.AutoRenewal.Value;
+
+            if (request.IsFrozen.HasValue)
+                subscription.IsFrozen = request.IsFrozen.Value;
+
+            await _context.SaveChangesAsync();
+        }
+
+
     }
 }
