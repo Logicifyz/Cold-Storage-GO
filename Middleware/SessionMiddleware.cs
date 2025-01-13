@@ -16,7 +16,7 @@ namespace Cold_Storage_GO.Middleware
         private readonly ILogger<SessionMiddleware> _logger;
 
         public SessionMiddleware(RequestDelegate next, IServiceScopeFactory scopeFactory, ILogger<SessionMiddleware> logger)
-        {
+        { 
             _next = next;
             _scopeFactory = scopeFactory;
             _logger = logger;
