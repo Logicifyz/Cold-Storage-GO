@@ -2,6 +2,7 @@
 using Cold_Storage_GO.Models;
 using Cold_Storage_GO.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 
 namespace Cold_Storage_GO.Controllers
 {
@@ -11,11 +12,26 @@ namespace Cold_Storage_GO.Controllers
     public class SubscriptionsController : ControllerBase
     {
         private readonly SubscriptionService _subscriptionService;
+        private readonly DbContexts _context;  // ✅ Ensure the DbContext is defined here
 
-        public SubscriptionsController(SubscriptionService subscriptionService)
+
+        public SubscriptionsController(SubscriptionService subscriptionService, DbContexts context)
         {
             _subscriptionService = subscriptionService;
+            _context = context;  // ✅ Properly injected here
         }
+
+        [HttpGet("user")]
+        public async Task<IActionResult> GetUserSubscription(Guid userId)
+        {
+            var subscription = await _subscriptionService.GetSubscriptionByUserIdAsync(userId);
+            if (subscription == null)
+            {
+                return NotFound("No subscription found for the given user.");
+            }
+            return Ok(subscription);
+        }
+
 
         // ✅ Updated: Now includes SubscriptionChoice
         [HttpPost]
@@ -33,18 +49,66 @@ namespace Cold_Storage_GO.Controllers
             return Ok("Subscription created successfully");
         }
 
-        [HttpPut("freeze/{subscriptionId}")]
-        public async Task<IActionResult> FreezeSubscription(Guid subscriptionId)
+        // ✅ Toggle Auto-Renewal API
+        [HttpPut("toggle-autorenewal/{subscriptionId}")]
+        public async Task<IActionResult> ToggleAutoRenewal(Guid subscriptionId)
         {
-            await _subscriptionService.FreezeSubscriptionAsync(subscriptionId);
-            return Ok("Subscription frozen");
+            try
+            {
+                await _subscriptionService.ToggleAutoRenewalAsync(subscriptionId);
+                return Ok("Auto-Renewal status updated successfully.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error: {ex.Message}");
+            }
         }
 
-        [HttpDelete("{subscriptionId}")]
+
+        // ✅ Freeze Subscription
+        [HttpPut("toggle-freeze/{subscriptionId}")]
+        public async Task<IActionResult> ToggleFreeze(Guid subscriptionId)
+        {
+            try
+            {
+                var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
+                if (subscription == null) return NotFound("Subscription not found.");
+
+                if ((bool)subscription.IsFrozen)
+                {
+                    await _subscriptionService.UnfreezeSubscriptionAsync(subscriptionId);
+                    return Ok("Subscription unfrozen successfully.");
+                }
+                else
+                {
+                    await _subscriptionService.FreezeSubscriptionAsync(subscriptionId);
+                    return Ok("Subscription frozen successfully.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error: {ex.Message}");
+            }
+        }
+
+        [HttpDelete("cancel/{subscriptionId}")]
         public async Task<IActionResult> CancelSubscription(Guid subscriptionId)
         {
-            await _subscriptionService.CancelSubscriptionAsync(subscriptionId);
-            return Ok("Subscription canceled");
+            try
+            {
+                var subscription = await _subscriptionService.GetSubscriptionByIdAsync(subscriptionId);
+                if (subscription == null)
+                {
+                    return NotFound("Subscription not found.");
+                }
+
+                await _subscriptionService.CancelSubscriptionAsync(subscriptionId);
+                return Ok("Subscription has been successfully canceled.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error canceling subscription: {ex.Message}");
+            }
         }
 
         // ✅ New: Get Subscriptions by SubscriptionChoice

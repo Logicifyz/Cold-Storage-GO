@@ -36,21 +36,50 @@ namespace Cold_Storage_GO.Services
         public async Task FreezeSubscriptionAsync(Guid subscriptionId)
         {
             var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
-            if (subscription == null) throw new Exception("Subscription not found.");
+            if (subscription == null)
+            {
+                throw new Exception("Subscription not found.");
+            }
+
+            if ((bool)subscription.IsFrozen)
+            {
+                throw new Exception("Subscription is already frozen.");
+            }
 
             subscription.IsFrozen = true;
+            _context.Subscriptions.Update(subscription);
             await _context.SaveChangesAsync();
         }
 
-        // ✅ Staff Cancels a Subscription
+        public async Task UnfreezeSubscriptionAsync(Guid subscriptionId)
+        {
+            var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
+            if (subscription == null)
+            {
+                throw new Exception("Subscription not found.");
+            }
+
+            subscription.IsFrozen = false;
+            _context.Subscriptions.Update(subscription);
+            await _context.SaveChangesAsync();
+        }
+
+
         public async Task CancelSubscriptionAsync(Guid subscriptionId)
         {
             var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
             if (subscription == null) throw new Exception("Subscription not found.");
 
             _context.Subscriptions.Remove(subscription);
+
+            // Refund points for all remaining days
+            int daysRemaining = (subscription.EndDate - DateTime.UtcNow.Date).Days;
+            int pointsToRefund = daysRemaining * 10;
+            Console.WriteLine($"User refunded {pointsToRefund} points.");
+
             await _context.SaveChangesAsync();
         }
+
 
         // ✅ New: Get Subscriptions by SubscriptionChoice
         public async Task<IEnumerable<Subscription>> GetSubscriptionsByChoiceAsync(string subscriptionChoice)
@@ -133,6 +162,61 @@ namespace Cold_Storage_GO.Services
                 subscription.IsFrozen = request.IsFrozen.Value;
 
             await _context.SaveChangesAsync();
+        }
+
+        public async Task ExtendSubscriptionAsync(Guid subscriptionId)
+        {
+            var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
+            if (subscription == null) throw new Exception("Subscription not found.");
+
+            if ((bool)!subscription.AutoRenewal) return; // Only renew if auto-renewal is enabled
+
+            // Calculate next start and end date based on subscription type
+            DateTime nextStartDate = subscription.EndDate.AddDays(1).Date; // Start next day at midnight
+            int duration = subscription.SubscriptionType.ToLower() == "weekly" ? 7 : 30;
+            DateTime nextEndDate = nextStartDate.AddDays(duration).AddSeconds(-1);
+
+            subscription.StartDate = nextStartDate;
+            subscription.EndDate = nextEndDate;
+
+            await _context.SaveChangesAsync();
+        }
+        public async Task<Subscription> GetSubscriptionByIdAsync(Guid subscriptionId)
+        {
+            return await _context.Subscriptions.FindAsync(subscriptionId);
+        }
+
+        public async Task UpdateSubscriptionAsync(Subscription subscription)
+        {
+            _context.Subscriptions.Update(subscription);
+            await _context.SaveChangesAsync();
+        }
+        public async Task<Subscription?> GetSubscriptionByUserIdAsync(Guid userId)
+        {
+            try
+            {
+                var subscription = await _context.Subscriptions
+                    .FirstOrDefaultAsync(s => s.UserId == userId);
+
+                return subscription;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error fetching subscription by user ID: {ex.Message}");
+                return null;
+            }
+        }
+        public async Task ToggleAutoRenewalAsync(Guid subscriptionId)
+        {
+            var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
+            if (subscription == null)
+            {
+                throw new Exception("Subscription not found.");
+            }
+
+            subscription.AutoRenewal = !subscription.AutoRenewal; // Toggle the value
+            _context.Subscriptions.Update(subscription);  // Ensure it tracks the entity
+            await _context.SaveChangesAsync();  // Persist the change
         }
 
 
