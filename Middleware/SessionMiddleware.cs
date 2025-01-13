@@ -167,7 +167,7 @@ namespace Cold_Storage_GO.Middleware
                     {
                         HttpOnly = true,
                         Secure = true,
-                        SameSite = SameSiteMode.Lax,
+                        SameSite = SameSiteMode.Strict,
                         Expires = DateTime.UtcNow.AddMinutes(30)
                     });
 

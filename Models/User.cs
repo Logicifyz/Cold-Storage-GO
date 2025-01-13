@@ -22,3 +22,4 @@ namespace Cold_Storage_GO.Models
 
     }
 }
+        
