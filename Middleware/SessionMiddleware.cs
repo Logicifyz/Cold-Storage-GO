@@ -2,10 +2,9 @@
 using Google.Protobuf.WellKnownTypes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;  // Add this import for logging
+using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Cold_Storage_GO.Middleware
@@ -14,27 +13,30 @@ namespace Cold_Storage_GO.Middleware
     {
         private readonly RequestDelegate _next;
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly ILogger<SessionMiddleware> _logger;  // Inject the logger
+        private readonly ILogger<SessionMiddleware> _logger;
 
         public SessionMiddleware(RequestDelegate next, IServiceScopeFactory scopeFactory, ILogger<SessionMiddleware> logger)
-        {
+        { 
             _next = next;
             _scopeFactory = scopeFactory;
-            _logger = logger;  // Assign the injected logger
+            _logger = logger;
         }
 
         public async Task InvokeAsync(HttpContext context)
         {
             var requestPath = context.Request.Path.Value;
-            var excludedPaths = new[] { "/api/Auth", "/swagger", "/api/Account/profile/", "/api/HelpCentre", "/api/MealKit", 
-                "/api/Recipes", "/api/deliveries", "/api/deliveries/", "/api/subscriptions", "/api/subscriptions/", "/api/orders","/api/dish", };
+            var excludedPaths = new[]
+            {
+                "/api/Auth/login","/api/Auth/register","/api/Auth/request-password-reset","/api/Auth/reset-password","/api/Auth/staff/login", "/swagger", "/api/Account/profile/", "/api/HelpCentre",
+                "/api/MealKit", "/api/Recipes", "/api/deliveries", "/api/deliveries/",
+                "/api/subscriptions"
+            };
 
-            // Log the request path and session ID for debugging
+
             _logger.LogInformation("Request Path: {RequestPath}", requestPath);
             var sessionId = context.Request.Cookies["SessionId"];
             _logger.LogInformation("SessionId Cookie: {SessionId}", sessionId ?? "Not provided");
 
-            // Skip session validation for excluded paths
             if (excludedPaths.Any(path => requestPath.StartsWith(path, StringComparison.OrdinalIgnoreCase)))
             {
                 await _next(context);
@@ -53,23 +55,19 @@ namespace Cold_Storage_GO.Middleware
                     return;
                 }
 
-                // First, check in UserSessions table
-                var userSession = await _context.UserSessions
-                    .FirstOrDefaultAsync(s => s.UserSessionId == sessionId);
+                var userSession = await _context.UserSessions.FirstOrDefaultAsync(s => s.UserSessionId == sessionId);
 
                 if (userSession != null)
                 {
                     _logger.LogInformation("Found user session for SessionId: {SessionId}", sessionId);
 
-                    // Initialize the Data field if it's null or empty
                     if (string.IsNullOrEmpty(userSession.Data))
                     {
-                        userSession.Data = "[]"; // Initialize with an empty JSON array
+                        userSession.Data = "[]";
                         _context.UserSessions.Update(userSession);
                         await _context.SaveChangesAsync();
                     }
 
-                    // Validate the User session
                     if (!userSession.IsActive)
                     {
                         _logger.LogWarning("User session is inactive for SessionId: {SessionId}", sessionId);
@@ -80,7 +78,6 @@ namespace Cold_Storage_GO.Middleware
                         return;
                     }
 
-                    // Check session expiry (e.g., 30 minutes of inactivity)
                     var sessionExpiry = userSession.LastAccessed.AddMinutes(30);
                     if (DateTime.UtcNow > sessionExpiry)
                     {
@@ -89,44 +86,27 @@ namespace Cold_Storage_GO.Middleware
                         _context.UserSessions.Remove(userSession);
                         await _context.SaveChangesAsync();
 
-                        // Clear the session cookie as it is expired
-                        context.Response.Cookies.Append("SessionId", "", new CookieOptions
-                        {
-                            Expires = DateTime.UtcNow.AddMinutes(-1)
-                        });
-
+                        CookieService.SetCookie(context, "SessionId", "", -1);
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         await context.Response.WriteAsync("User session expired and deleted.");
                         return;
                     }
 
-                    // Update LastAccessed timestamp for User session
                     userSession.LastAccessed = DateTime.UtcNow;
                     _context.UserSessions.Update(userSession);
                     await _context.SaveChangesAsync();
 
-                    // Optionally, refresh the session cookie expiry
-                    context.Response.Cookies.Append("SessionId", userSession.UserSessionId, new CookieOptions
-                    {
-                        HttpOnly = true,
-                        Secure = true,
-                        SameSite = SameSiteMode.Strict,
-                        Expires = DateTime.UtcNow.AddMinutes(30) // Refresh expiry
-                    });
-
+                    CookieService.SetCookie(context, "SessionId", userSession.UserSessionId);
                     await _next(context);
                     return;
                 }
 
-                // Next, check in StaffSessions table if no valid user session was found
-                var staffSession = await _context.StaffSessions
-                    .FirstOrDefaultAsync(s => s.StaffSessionId == sessionId);
+                var staffSession = await _context.StaffSessions.FirstOrDefaultAsync(s => s.StaffSessionId == sessionId);
 
                 if (staffSession != null)
                 {
                     _logger.LogInformation("Found staff session for SessionId: {SessionId}", sessionId);
 
-                    // Validate the Staff session
                     if (!staffSession.IsActive)
                     {
                         _logger.LogWarning("Staff session is inactive for SessionId: {SessionId}", sessionId);
@@ -137,7 +117,6 @@ namespace Cold_Storage_GO.Middleware
                         return;
                     }
 
-                    // Check session expiry (e.g., 30 minutes of inactivity)
                     var staffSessionExpiry = staffSession.LastAccessed.AddMinutes(30);
                     if (DateTime.UtcNow > staffSessionExpiry)
                     {
@@ -146,36 +125,21 @@ namespace Cold_Storage_GO.Middleware
                         _context.StaffSessions.Remove(staffSession);
                         await _context.SaveChangesAsync();
 
-                        // Clear the session cookie for staff
-                        context.Response.Cookies.Append("SessionId", "", new CookieOptions
-                        {
-                            Expires = DateTime.UtcNow.AddMinutes(-1)
-                        });
-
+                        CookieService.SetCookie(context, "SessionId", "", -1);
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         await context.Response.WriteAsync("Staff session expired and deleted.");
                         return;
                     }
 
-                    // Update LastAccessed timestamp for Staff session
                     staffSession.LastAccessed = DateTime.UtcNow;
                     _context.StaffSessions.Update(staffSession);
                     await _context.SaveChangesAsync();
 
-                    // Optionally, refresh the session cookie expiry
-                    context.Response.Cookies.Append("SessionId", staffSession.StaffSessionId, new CookieOptions
-                    {
-                        HttpOnly = true,
-                        Secure = true,
-                        SameSite = SameSiteMode.Strict,
-                        Expires = DateTime.UtcNow.AddMinutes(30)
-                    });
-
+                    CookieService.SetCookie(context, "SessionId", staffSession.StaffSessionId);
                     await _next(context);
                     return;
                 }
 
-                // If no valid session found in either UserSessions or StaffSessions
                 _logger.LogWarning("No valid session found for SessionId: {SessionId}", sessionId);
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 await context.Response.WriteAsync("Session ID is invalid or does not exist.");

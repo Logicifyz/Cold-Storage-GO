@@ -110,19 +110,16 @@ public class AuthController : ControllerBase
         _context.UserSessions.Add(session);
         await _context.SaveChangesAsync();
         // Set the session ID as a cookie in the response
-        HttpContext.Response.Cookies.Append("SessionId", sessionId, new CookieOptions
-        {
-            HttpOnly = true,    // Make the cookie accessible only through HTTP requests// Ensure the cookie is only sent over HTTPS
-            Secure = false,  // Only if you are not using HTTPS in local development
-            SameSite = SameSiteMode.None,  // Prevent CSRF attacks
-            Expires = DateTime.UtcNow.AddMinutes(30)  // Set an expiration time for the session
-        });
+        CookieService.SetCookie(HttpContext, "SessionId", sessionId);
 
         // Send verification email
+        var verificationUrl = $"{Request.Scheme}://localhost:3000/verify-account/{userAdmin.VerificationToken}";
+
+        // Send the verification email with the URL
         var emailSent = await _emailService.SendEmailAsync(
             request.Email,
             "Email Verification",
-            $"Please verify your email using the following token: {userAdmin.VerificationToken}"
+            $"Please verify your email by clicking on the following link: <a href='{verificationUrl}'>Verify Email</a>"
         );
 
         if (!emailSent)
@@ -142,7 +139,7 @@ public class AuthController : ControllerBase
 
         if (user == null)
         {
-            return Unauthorized("Invalid email or password.");
+            return Unauthorized(new { message = "Invalid email or password." });
         }
 
         var userAdmin = user.UserAdministration;
@@ -150,10 +147,15 @@ public class AuthController : ControllerBase
         // Check if account is locked
         if (userAdmin.LockoutUntil.HasValue && userAdmin.LockoutUntil > DateTime.UtcNow)
         {
-            return StatusCode(403, $"Account is locked until {userAdmin.LockoutUntil.Value:u}");
+            // Convert LockoutUntil to Singapore Time (UTC+8)
+            var singaporeTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+            var lockoutTime = TimeZoneInfo.ConvertTimeFromUtc(userAdmin.LockoutUntil.Value, singaporeTimeZone).ToString("yyyy-MM-dd HH:mm:ss");
+
+            return StatusCode(403, new { message = $"Account is locked until {lockoutTime} SGT" });
         }
 
-        // Reset failed login attempts if it has been more than 10 minutes since the last failed attempt
+
+        // Reset failed login attempts if it has been more than 5 minutes since the last failed attempt
         if (userAdmin.LastFailedLogin.HasValue && userAdmin.LastFailedLogin.Value.AddMinutes(5) < DateTime.UtcNow)
         {
             userAdmin.FailedLoginAttempts = 0; // Reset the failed attempts
@@ -169,11 +171,11 @@ public class AuthController : ControllerBase
             // If failed attempts exceed the limit, lock the account
             if (userAdmin.FailedLoginAttempts >= 5)
             {
-                userAdmin.LockoutUntil = DateTime.UtcNow.AddMinutes(5); // Lock for 15 minutes
+                userAdmin.LockoutUntil = DateTime.UtcNow.AddMinutes(5); // Lock for 5 minutes
             }
 
             await _context.SaveChangesAsync();
-            return Unauthorized("Invalid email or password.");
+            return Unauthorized(new { message = "Invalid email or password." });
         }
 
         userAdmin.FailedLoginAttempts = 0;
@@ -215,17 +217,13 @@ public class AuthController : ControllerBase
         }
 
         // Set the session ID in a cookie
-        HttpContext.Response.Cookies.Append("SessionId", sessionId, new CookieOptions
-        {
-            HttpOnly = true,    // Make the cookie accessible only through HTTP requests
-            Secure = false,  // Only if you are not using HTTPS in local development
-            SameSite = SameSiteMode.None,  // Prevent CSRF attacks
-            Expires = DateTime.UtcNow.AddMinutes(30)  // Set an expiration time for the session
-        });
+        CookieService.SetCookie(HttpContext, "SessionId", sessionId);
+
 
         return Ok(new
         {
             success = true,
+            message = "Login successful!",
             UserSessionId = sessionId,
             UserId = user.UserId,
             Username = user.Username,
@@ -239,6 +237,7 @@ public class AuthController : ControllerBase
             }
         });
     }
+
 
 
     [HttpPost("request-password-reset")]
@@ -257,18 +256,22 @@ public class AuthController : ControllerBase
 
         _context.UserAdministration.Update(userAdmin);
         await _context.SaveChangesAsync();
+        var verificationUrl = $"{Request.Scheme}://localhost:3000/resetpassword/{userAdmin.PasswordResetToken}";
 
         // Send the password reset token via email
         var emailSent = await _emailService.SendEmailAsync(
             request.Email,
             "Password Reset Request",
-            $"Your password reset token is: {userAdmin.PasswordResetToken}"
+            $"Please reset your password by clicking on the following link: <a href='{verificationUrl}'>Reset Password</a>"
         );
 
+
+        // Send the verification email with the URL
+        
         if (!emailSent)
             return StatusCode(500, "Failed to send the email.");
 
-        return Ok(new { Message = "Password reset token generated.", Token = userAdmin.PasswordResetToken });
+        return Ok(new {success = true, Message = "Password reset token generated.", Token = userAdmin.PasswordResetToken });
     }
 
     [HttpPost("reset-password")]
@@ -288,16 +291,16 @@ public class AuthController : ControllerBase
         _context.UserAdministration.Update(userAdmin);
         await _context.SaveChangesAsync();
 
-        return Ok(new { Message = "Password reset successful." });
+        return Ok(new { success =true, Message = "Password reset successful." });
     }
 
     // Endpoint for email verification
-    [HttpPost("verify-email")]
-    public async Task<IActionResult> VerifyEmail([FromBody] EmailVerificationRequest request)
+    [HttpPost("verify-email/{token}")]
+    public async Task<IActionResult> VerifyEmail(string token)
     {
         var userAdmin = await _context.UserAdministration
             .Include(ua => ua.User)
-            .FirstOrDefaultAsync(ua => ua.VerificationToken == request.Token);
+            .FirstOrDefaultAsync(ua => ua.VerificationToken == token);
 
         if (userAdmin == null)
             return BadRequest("Invalid or expired verification token.");
@@ -311,6 +314,7 @@ public class AuthController : ControllerBase
 
         return Ok(new { Message = "Email verified successfully." });
     }
+
 
     [HttpPost("request-verification-email")]
     public async Task<IActionResult> RequestVerificationEmail([FromBody] VerificationEmailRequest request)
@@ -354,10 +358,13 @@ public class AuthController : ControllerBase
         await _context.SaveChangesAsync();
 
         // Send the verification email
+        var verificationUrl = $"{Request.Scheme}://localhost:3000/verify-account/{userAdmin.VerificationToken}";
+
+        // Send the verification email with the URL
         var emailSent = await _emailService.SendEmailAsync(
             request.Email,
             "Email Verification",
-            $"Please verify your email using the following token: {userAdmin.VerificationToken}"
+            $"Please verify your email by clicking on the following link: <a href='{verificationUrl}'>Verify Email</a>"
         );
 
         if (!emailSent)
