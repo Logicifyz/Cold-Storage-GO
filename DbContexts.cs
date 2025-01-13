@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Cold_Storage_GO.Models;
+using System.Text.Json;
 
 namespace Cold_Storage_GO
 {
@@ -31,15 +32,12 @@ namespace Cold_Storage_GO
         public DbSet<SupportTicket> SupportTickets { get; set; }
         public DbSet<StaffSession> StaffSessions { get; set; }
         public DbSet<Article> Articles { get; set; }
-  
         public DbSet<Dish> Dishes { get; set; }
         public DbSet<NutritionalFacts> NutritionalFacts { get; set; }
         public DbSet<Rewards> Rewards { get; set; }
         public DbSet<Wallet> Wallets { get; set; }
         public DbSet<Redemptions> Redemptions { get; set; }
         public DbSet<MealKit> MealKits { get; set; }
-
-        // Newly added models
         public DbSet<Comment> Comments { get; set; }
         public DbSet<Discussion> Discussions { get; set; }
         public DbSet<Recipe> Recipes { get; set; }
@@ -83,6 +81,13 @@ namespace Cold_Storage_GO
                 .HasForeignKey(c => c.ParentCommentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Configure Recipe MediaUrls as JSON
+            modelBuilder.Entity<Recipe>()
+                .Property(r => r.MediaUrls)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
+                    v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions)null)
+                );
         }
     }
 }

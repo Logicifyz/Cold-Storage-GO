@@ -139,7 +139,8 @@ namespace Cold_Storage_GO.Migrations
                     Price = table.Column<int>(type: "int", nullable: false),
                     ExpiryDate = table.Column<DateTime>(type: "datetime", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime", nullable: false)
+                    UpdatedAt = table.Column<DateTime>(type: "datetime", nullable: false),
+                    ListingImage = table.Column<byte[]>(type: "longblob", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -180,7 +181,7 @@ namespace Cold_Storage_GO.Migrations
                     Ingredients = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: false),
                     Instructions = table.Column<string>(type: "varchar(2000)", maxLength: 2000, nullable: false),
                     Tags = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false),
-                    MediaUrl = table.Column<string>(type: "longtext", nullable: false),
+                    MediaUrls = table.Column<string>(type: "longtext", nullable: false),
                     Visibility = table.Column<string>(type: "longtext", nullable: false),
                     Upvotes = table.Column<int>(type: "int", nullable: false),
                     Downvotes = table.Column<int>(type: "int", nullable: false)
@@ -273,7 +274,8 @@ namespace Cold_Storage_GO.Migrations
                     AutoRenewal = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     DeliveryTimeSlot = table.Column<string>(type: "longtext", nullable: false),
                     SubscriptionType = table.Column<string>(type: "longtext", nullable: false),
-                    IsFrozen = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                    IsFrozen = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    SubscriptionChoice = table.Column<string>(type: "longtext", nullable: false)
                 },
                 constraints: table =>
                 {

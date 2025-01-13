@@ -382,7 +382,7 @@ namespace Cold_Storage_GO.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("varchar(2000)");
 
-                    b.Property<string>("MediaUrl")
+                    b.Property<string>("MediaUrls")
                         .IsRequired()
                         .HasColumnType("longtext");
 
@@ -563,6 +563,10 @@ namespace Cold_Storage_GO.Migrations
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<string>("SubscriptionChoice")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<string>("SubscriptionType")
                         .IsRequired()

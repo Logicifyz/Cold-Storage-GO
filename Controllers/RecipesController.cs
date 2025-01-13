@@ -48,9 +48,35 @@ namespace Cold_Storage_GO.Controllers
 
         // 3. Create a Recipe
         [HttpPost]
-        public async Task<IActionResult> CreateRecipe([FromBody] Recipe recipe)
+        public async Task<IActionResult> CreateRecipe([FromForm] Recipe recipe, [FromForm] List<IFormFile> mediaFiles)
         {
             recipe.RecipeId = Guid.NewGuid();
+
+            // Ensure MediaFiles directory exists
+            var mediaFolder = Path.Combine(Directory.GetCurrentDirectory(), "MediaFiles");
+            if (!Directory.Exists(mediaFolder))
+            {
+                Directory.CreateDirectory(mediaFolder);
+            }
+
+            var mediaUrls = new List<string>();
+
+            foreach (var file in mediaFiles)
+            {
+                if (file.Length > 0)
+                {
+                    var fileName = $"{Guid.NewGuid()}_{file.FileName}";
+                    var filePath = Path.Combine(mediaFolder, fileName);
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+                    mediaUrls.Add(Path.Combine("MediaFiles", fileName)); // Use relative path
+                }
+            }
+
+            recipe.MediaUrls = mediaUrls;
+
             _context.Recipes.Add(recipe);
             await _context.SaveChangesAsync();
 
@@ -59,7 +85,7 @@ namespace Cold_Storage_GO.Controllers
 
         // 4. Update a Recipe
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateRecipe(Guid id, [FromBody] Recipe updatedRecipe)
+        public async Task<IActionResult> UpdateRecipe(Guid id, [FromForm] Recipe updatedRecipe, [FromForm] List<IFormFile> mediaFiles)
         {
             var recipe = await _context.Recipes.FindAsync(id);
             if (recipe == null) return NotFound("Recipe not found.");
@@ -70,8 +96,31 @@ namespace Cold_Storage_GO.Controllers
             recipe.Ingredients = updatedRecipe.Ingredients;
             recipe.Instructions = updatedRecipe.Instructions;
             recipe.Tags = updatedRecipe.Tags;
-            recipe.MediaUrl = updatedRecipe.MediaUrl;
             recipe.Visibility = updatedRecipe.Visibility;
+
+            // Ensure MediaFiles directory exists
+            var mediaFolder = Path.Combine(Directory.GetCurrentDirectory(), "MediaFiles");
+            if (!Directory.Exists(mediaFolder))
+            {
+                Directory.CreateDirectory(mediaFolder);
+            }
+
+            var mediaUrls = new List<string>();
+            foreach (var file in mediaFiles)
+            {
+                if (file.Length > 0)
+                {
+                    var fileName = $"{Guid.NewGuid()}_{file.FileName}";
+                    var filePath = Path.Combine(mediaFolder, fileName);
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+                    mediaUrls.Add(Path.Combine("MediaFiles", fileName)); // Use relative path
+                }
+            }
+
+            recipe.MediaUrls.AddRange(mediaUrls);
 
             _context.Recipes.Update(recipe);
             await _context.SaveChangesAsync();
