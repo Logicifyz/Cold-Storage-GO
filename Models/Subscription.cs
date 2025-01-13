@@ -8,8 +8,12 @@ public class Subscription
     public int Frequency { get; set; }
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
-    public bool AutoRenewal { get; set; }
-    public string DeliveryTimeSlot { get; set; }  // Fixed error
-    public string SubscriptionType { get; set; }  // Fixed error
-    public bool IsFrozen { get; set; }  // Fixed error
+    public bool? AutoRenewal { get; set; }  // ✅ Nullable now
+    public string DeliveryTimeSlot { get; set; }  
+    public string SubscriptionType { get; set; }  
+    public bool? IsFrozen { get; set; }  // ✅ Nullable now
+    public string? StripeSessionId { get; set; } // ✅ Nullable now
+    public string SubscriptionChoice { get; set; }  
+    public decimal Price { get; set; }
 }
+

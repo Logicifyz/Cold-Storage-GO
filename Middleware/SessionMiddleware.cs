@@ -32,6 +32,7 @@ namespace Cold_Storage_GO.Middleware
                 "/api/subscriptions"
             };
 
+
             _logger.LogInformation("Request Path: {RequestPath}", requestPath);
             var sessionId = context.Request.Cookies["SessionId"];
             _logger.LogInformation("SessionId Cookie: {SessionId}", sessionId ?? "Not provided");

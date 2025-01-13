@@ -4,6 +4,7 @@ using Cold_Storage_GO;
 using Cold_Storage_GO.Services;
 using Cold_Storage_GO.Middleware;
 using Cold_Storage_GO.Services;
+using Cold_Storage_GO.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,18 +24,35 @@ builder.Services.AddCors(options =>
 // Add services to the container.
 builder.Services.AddControllers();
 
-// ✅ Register DbContext for MySQL (Ensure Proper Setup)
-builder.Services.AddDbContext<DbContexts>();
+// ✅ Correct way to initialize Stripe without namespace conflicts
+builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
 
-// ✅ Register Services
-builder.Services.AddScoped<SubscriptionService>();
+
+// ✅ Register Services Explicitly to Prevent Conflicts
+builder.Services.AddDbContext<DbContexts>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<DeliveryService>();
-
-// ✅ Swagger Setup
 builder.Services.AddSingleton<EmailService>();
+builder.Logging.AddConsole();
 
-// Configure Swagger
+
+// ✅ CORS Setup for React Frontend Integration
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
+// ✅ Register Controllers
+builder.Services.AddControllers();
+builder.Services.AddScoped<Cold_Storage_GO.Services.SubscriptionService>();
+
+// ✅ Swagger Configuration with Security Definition for Session Tokens
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -63,8 +81,7 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Add authentication and authorization
-// ✅ Authentication and Authorization Setup
+// ✅ Authentication Setup
 builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
    .AddNegotiate();
 
@@ -73,18 +90,17 @@ builder.Services.AddAuthorization(options =>
     options.FallbackPolicy = options.DefaultPolicy;
 });
 
+// ✅ Middleware Pipeline
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
 app.UseHttpsRedirection();
-app.UseCors("AllowReactApp"); // CORS middleware must come before Authorization
-app.UseAuthentication();      // Add this if you are using authentication
+app.UseCors("AllowReactApp");
+app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<SessionMiddleware>();
 app.MapControllers();
