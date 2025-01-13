@@ -4,31 +4,25 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Cold_Storage_GO.Models
 {
+  
     public class Dish
     {
         [Key]
-        public Guid DishId { get; set; } = Guid.NewGuid(); // Automatically generated
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public Guid DishId { get; set; } // Automatically generated
 
         public Guid? UserId { get; set; } // Nullable foreign key
-
-        public Guid? MealKitId { get; set; } // Nullable foreign key
 
         [Required]
         [StringLength(100)]
         public string Name { get; set; } // Required
 
         [Required]
-        [StringLength(100)]
-        public string Ingredients { get; set; } // Required
-
-        [Required]
-        [StringLength(100)]
+        [StringLength(300)]
         public string Instructions { get; set; } // Required
-
-     
     }
 
-    
+
     public class NutritionalFacts
     {
         [Key]
@@ -69,9 +63,5 @@ namespace Cold_Storage_GO.Models
 
         [StringLength(100)]
         public string? Vitamins { get; set; } // Optional field
-
-        [StringLength(100)]
-        public string? Ingredients { get; set; } // Optional field
     }
 }
-

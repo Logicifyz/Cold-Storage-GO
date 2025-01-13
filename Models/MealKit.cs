@@ -9,7 +9,17 @@ namespace Cold_Storage_GO.Models
     public class MealKit
     {
         public Guid MealKitId { get; set; }
-        public Guid DishId { get; set; }
+
+        // Changed DishId to a list of DishId attributes
+        [NotMapped]
+        public List<Guid>? DishIds { get; set; }
+
+        [Column("DishIds")]
+        public string? DishIdsSerialized
+        {
+            get => DishIds != null ? JsonSerializer.Serialize(DishIds) : null;
+            set => DishIds = value != null ? JsonSerializer.Deserialize<List<Guid>>(value) : null;
+        }
 
         public string Name { get; set; }
         public int Price { get; set; }
@@ -34,5 +44,9 @@ namespace Cold_Storage_GO.Models
             get => Tags != null ? JsonSerializer.Serialize(Tags) : null;
             set => Tags = value != null ? JsonSerializer.Deserialize<List<string>>(value) : null;
         }
+
+        // Added Ingredients as a longtext (varchar)
+        [Column(TypeName = "longtext")]
+        public string? Ingredients { get; set; }
     }
 }

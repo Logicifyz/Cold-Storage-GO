@@ -60,14 +60,15 @@ namespace Cold_Storage_GO.Controllers
             var newMealKit = new MealKit
             {
                 MealKitId = Guid.NewGuid(),
-                DishId = request.DishId,
+                DishIds = request.DishIds,
                 Name = request.Name,
                 Price = request.Price,
                 ExpiryDate = request.ExpiryDate,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 ListingImage = imageBytes,
-                Tags = request.Tags
+                Tags = request.Tags,
+                Ingredients = request.Ingredients
             };
 
             _context.MealKits.Add(newMealKit);
@@ -86,12 +87,13 @@ namespace Cold_Storage_GO.Controllers
                 return NotFound();
             }
 
-            mealKit.DishId = request.DishId;
+            mealKit.DishIds = request.DishIds;
             mealKit.Name = request.Name;
             mealKit.Price = request.Price;
             mealKit.ExpiryDate = request.ExpiryDate;
             mealKit.UpdatedAt = DateTime.UtcNow;
             mealKit.Tags = request.Tags;
+            mealKit.Ingredients = request.Ingredients;
 
             if (request.ListingImage != null)
             {
@@ -145,8 +147,8 @@ namespace Cold_Storage_GO.Controllers
 
     public class MealKitCreateRequest
     {
-        [Required(ErrorMessage = "DishId is required.")]
-        public Guid DishId { get; set; }
+        [Required(ErrorMessage = "DishIds are required.")]
+        public List<Guid> DishIds { get; set; } = new();
 
         [Required(ErrorMessage = "Name is required.")]
         [StringLength(100, ErrorMessage = "Name length cannot exceed 100 characters.")]
@@ -161,17 +163,21 @@ namespace Cold_Storage_GO.Controllers
 
         public IFormFile? ListingImage { get; set; }
         public List<string>? Tags { get; set; }
-    }
 
+        [StringLength(1000, ErrorMessage = "Ingredients length cannot exceed 1000 characters.")]
+        public string Ingredients { get; set; }
+    }
 
     public class MealKitUpdateRequest
     {
-        public Guid DishId { get; set; }
+        public List<Guid> DishIds { get; set; } = new();
         public string Name { get; set; }
         public int Price { get; set; }
         public DateTime ExpiryDate { get; set; }
         public IFormFile? ListingImage { get; set; }
-        public List<string>? Tags { get; set; } // New property for tags
+        public List<string>? Tags { get; set; }
+
+        [StringLength(1000, ErrorMessage = "Ingredients length cannot exceed 1000 characters.")]
+        public string Ingredients { get; set; }
     }
 }
-    

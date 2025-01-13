@@ -7,7 +7,7 @@ using MySql.EntityFrameworkCore.Metadata;
 namespace Cold_Storage_GO.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class initialcreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -117,10 +117,8 @@ namespace Cold_Storage_GO.Migrations
                 {
                     DishId = table.Column<Guid>(type: "char(36)", nullable: false),
                     UserId = table.Column<Guid>(type: "char(36)", nullable: true),
-                    MealKitId = table.Column<Guid>(type: "char(36)", nullable: true),
                     Name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false),
-                    Ingredients = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false),
-                    Instructions = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Instructions = table.Column<string>(type: "varchar(300)", maxLength: 300, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -133,14 +131,15 @@ namespace Cold_Storage_GO.Migrations
                 columns: table => new
                 {
                     MealKitId = table.Column<Guid>(type: "char(36)", nullable: false),
-                    DishId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    DishIds = table.Column<string>(type: "longtext", nullable: true),
                     Name = table.Column<string>(type: "longtext", nullable: false),
                     Price = table.Column<int>(type: "int", nullable: false),
                     ExpiryDate = table.Column<DateTime>(type: "datetime", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime", nullable: false),
                     ListingImage = table.Column<byte[]>(type: "longblob", nullable: true),
-                    Tags = table.Column<string>(type: "longtext", nullable: true)
+                    Tags = table.Column<string>(type: "longtext", nullable: true),
+                    Ingredients = table.Column<string>(type: "longtext", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -367,8 +366,7 @@ namespace Cold_Storage_GO.Migrations
                     DietaryFibre = table.Column<int>(type: "int", nullable: false),
                     Sugar = table.Column<int>(type: "int", nullable: false),
                     Protein = table.Column<int>(type: "int", nullable: false),
-                    Vitamins = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true),
-                    Ingredients = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                    Vitamins = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
                 },
                 constraints: table =>
                 {

@@ -188,18 +188,10 @@ namespace Cold_Storage_GO.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<string>("Ingredients")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
                     b.Property<string>("Instructions")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<Guid?>("MealKitId")
-                        .HasColumnType("char(36)");
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -240,11 +232,15 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime");
 
-                    b.Property<Guid>("DishId")
-                        .HasColumnType("char(36)");
+                    b.Property<string>("DishIdsSerialized")
+                        .HasColumnType("longtext")
+                        .HasColumnName("DishIds");
 
                     b.Property<DateTime>("ExpiryDate")
                         .HasColumnType("datetime");
+
+                    b.Property<string>("Ingredients")
+                        .HasColumnType("longtext");
 
                     b.Property<byte[]>("ListingImage")
                         .HasColumnType("longblob");
@@ -286,10 +282,6 @@ namespace Cold_Storage_GO.Migrations
 
                     b.Property<int>("DietaryFibre")
                         .HasColumnType("int");
-
-                    b.Property<string>("Ingredients")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
 
                     b.Property<int>("Protein")
                         .HasColumnType("int");
