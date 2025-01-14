@@ -178,8 +178,6 @@ namespace Cold_Storage_GO.Migrations
                     Name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false),
                     Description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false),
                     TimeTaken = table.Column<int>(type: "int", nullable: false),
-                    Ingredients = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: false),
-                    Instructions = table.Column<string>(type: "varchar(2000)", maxLength: 2000, nullable: false),
                     Tags = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false),
                     MediaUrls = table.Column<string>(type: "longtext", nullable: false),
                     Visibility = table.Column<string>(type: "longtext", nullable: false),
@@ -383,6 +381,50 @@ namespace Cold_Storage_GO.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "Ingredients",
+                columns: table => new
+                {
+                    IngredientId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    Quantity = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false),
+                    Unit = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false),
+                    Name = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false),
+                    RecipeId = table.Column<Guid>(type: "char(36)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Ingredients", x => x.IngredientId);
+                    table.ForeignKey(
+                        name: "FK_Ingredients_Recipes_RecipeId",
+                        column: x => x.RecipeId,
+                        principalTable: "Recipes",
+                        principalColumn: "RecipeId",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "Instructions",
+                columns: table => new
+                {
+                    InstructionId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    StepNumber = table.Column<int>(type: "int", nullable: false),
+                    Step = table.Column<string>(type: "varchar(2000)", maxLength: 2000, nullable: false),
+                    MediaUrl = table.Column<string>(type: "longtext", nullable: true),
+                    RecipeId = table.Column<Guid>(type: "char(36)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Instructions", x => x.InstructionId);
+                    table.ForeignKey(
+                        name: "FK_Instructions_Recipes_RecipeId",
+                        column: x => x.RecipeId,
+                        principalTable: "Recipes",
+                        principalColumn: "RecipeId",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "Follows",
                 columns: table => new
                 {
@@ -469,6 +511,16 @@ namespace Cold_Storage_GO.Migrations
                 column: "FollowedId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Ingredients_RecipeId",
+                table: "Ingredients",
+                column: "RecipeId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Instructions_RecipeId",
+                table: "Instructions",
+                column: "RecipeId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_UserProfiles_UserId",
                 table: "UserProfiles",
                 column: "UserId",
@@ -497,6 +549,12 @@ namespace Cold_Storage_GO.Migrations
                 name: "Follows");
 
             migrationBuilder.DropTable(
+                name: "Ingredients");
+
+            migrationBuilder.DropTable(
+                name: "Instructions");
+
+            migrationBuilder.DropTable(
                 name: "MealKits");
 
             migrationBuilder.DropTable(
@@ -504,9 +562,6 @@ namespace Cold_Storage_GO.Migrations
 
             migrationBuilder.DropTable(
                 name: "Orders");
-
-            migrationBuilder.DropTable(
-                name: "Recipes");
 
             migrationBuilder.DropTable(
                 name: "Redemptions");
@@ -537,6 +592,9 @@ namespace Cold_Storage_GO.Migrations
 
             migrationBuilder.DropTable(
                 name: "Wallets");
+
+            migrationBuilder.DropTable(
+                name: "Recipes");
 
             migrationBuilder.DropTable(
                 name: "Dishes");

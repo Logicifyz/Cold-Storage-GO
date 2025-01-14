@@ -24,18 +24,14 @@ namespace Cold_Storage_GO.Models
         [Range(1, 1440)]
         public int TimeTaken { get; set; }
 
-        [Required]
-        [MaxLength(1000)]
-        public string Ingredients { get; set; } = string.Empty;
+        public List<Ingredient> Ingredients { get; set; } = new List<Ingredient>();
 
-        [Required]
-        [MaxLength(2000)]
-        public string Instructions { get; set; } = string.Empty;
+        public List<Instruction> Instructions { get; set; } = new List<Instruction>();
 
         [MaxLength(200)]
         public string Tags { get; set; } = string.Empty;
 
-        public List<string> MediaUrls { get; set; } = new List<string>(); // Updated to handle multiple media URLs
+        public List<string> MediaUrls { get; set; } = new List<string>();
 
         [Required]
         [RegularExpression("^(public|private|friends-only)$", ErrorMessage = "Visibility must be 'public', 'private', or 'friends-only'")]

@@ -21,7 +21,10 @@ namespace Cold_Storage_GO.Controllers
         [HttpGet]
         public async Task<IActionResult> GetRecipes([FromQuery] string? tags, [FromQuery] string? visibility)
         {
-            var query = _context.Recipes.AsQueryable();
+            var query = _context.Recipes
+                .Include(r => r.Ingredients)
+                .Include(r => r.Instructions)
+                .AsQueryable();
 
             if (!string.IsNullOrEmpty(tags))
             {
@@ -40,7 +43,11 @@ namespace Cold_Storage_GO.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetRecipe(Guid id)
         {
-            var recipe = await _context.Recipes.FindAsync(id);
+            var recipe = await _context.Recipes
+                .Include(r => r.Ingredients)
+                .Include(r => r.Instructions)
+                .FirstOrDefaultAsync(r => r.RecipeId == id);
+
             if (recipe == null) return NotFound("Recipe not found.");
 
             return Ok(recipe);
@@ -52,7 +59,7 @@ namespace Cold_Storage_GO.Controllers
         {
             recipe.RecipeId = Guid.NewGuid();
 
-            // Ensure MediaFiles directory exists
+            // Process media files
             var mediaFolder = Path.Combine(Directory.GetCurrentDirectory(), "MediaFiles");
             if (!Directory.Exists(mediaFolder))
             {
@@ -60,7 +67,6 @@ namespace Cold_Storage_GO.Controllers
             }
 
             var mediaUrls = new List<string>();
-
             foreach (var file in mediaFiles)
             {
                 if (file.Length > 0)
@@ -71,11 +77,24 @@ namespace Cold_Storage_GO.Controllers
                     {
                         await file.CopyToAsync(stream);
                     }
-                    mediaUrls.Add(Path.Combine("MediaFiles", fileName)); // Use relative path
+                    mediaUrls.Add(Path.Combine("MediaFiles", fileName));
                 }
             }
 
             recipe.MediaUrls = mediaUrls;
+
+            // Save nested entities
+            foreach (var ingredient in recipe.Ingredients)
+            {
+                ingredient.IngredientId = Guid.NewGuid();
+                ingredient.RecipeId = recipe.RecipeId;
+            }
+
+            foreach (var instruction in recipe.Instructions)
+            {
+                instruction.InstructionId = Guid.NewGuid();
+                instruction.RecipeId = recipe.RecipeId;
+            }
 
             _context.Recipes.Add(recipe);
             await _context.SaveChangesAsync();
@@ -87,18 +106,21 @@ namespace Cold_Storage_GO.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateRecipe(Guid id, [FromForm] Recipe updatedRecipe, [FromForm] List<IFormFile> mediaFiles)
         {
-            var recipe = await _context.Recipes.FindAsync(id);
+            var recipe = await _context.Recipes
+                .Include(r => r.Ingredients)
+                .Include(r => r.Instructions)
+                .FirstOrDefaultAsync(r => r.RecipeId == id);
+
             if (recipe == null) return NotFound("Recipe not found.");
 
+            // Update recipe properties
             recipe.Name = updatedRecipe.Name;
             recipe.Description = updatedRecipe.Description;
             recipe.TimeTaken = updatedRecipe.TimeTaken;
-            recipe.Ingredients = updatedRecipe.Ingredients;
-            recipe.Instructions = updatedRecipe.Instructions;
             recipe.Tags = updatedRecipe.Tags;
             recipe.Visibility = updatedRecipe.Visibility;
 
-            // Ensure MediaFiles directory exists
+            // Update media files
             var mediaFolder = Path.Combine(Directory.GetCurrentDirectory(), "MediaFiles");
             if (!Directory.Exists(mediaFolder))
             {
@@ -116,11 +138,29 @@ namespace Cold_Storage_GO.Controllers
                     {
                         await file.CopyToAsync(stream);
                     }
-                    mediaUrls.Add(Path.Combine("MediaFiles", fileName)); // Use relative path
+                    mediaUrls.Add(Path.Combine("MediaFiles", fileName));
                 }
             }
 
             recipe.MediaUrls.AddRange(mediaUrls);
+
+            // Update ingredients
+            _context.Ingredients.RemoveRange(recipe.Ingredients);
+            foreach (var ingredient in updatedRecipe.Ingredients)
+            {
+                ingredient.IngredientId = Guid.NewGuid();
+                ingredient.RecipeId = recipe.RecipeId;
+                recipe.Ingredients.Add(ingredient);
+            }
+
+            // Update instructions
+            _context.Instructions.RemoveRange(recipe.Instructions);
+            foreach (var instruction in updatedRecipe.Instructions)
+            {
+                instruction.InstructionId = Guid.NewGuid();
+                instruction.RecipeId = recipe.RecipeId;
+                recipe.Instructions.Add(instruction);
+            }
 
             _context.Recipes.Update(recipe);
             await _context.SaveChangesAsync();
@@ -132,7 +172,11 @@ namespace Cold_Storage_GO.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRecipe(Guid id)
         {
-            var recipe = await _context.Recipes.FindAsync(id);
+            var recipe = await _context.Recipes
+                .Include(r => r.Ingredients)
+                .Include(r => r.Instructions)
+                .FirstOrDefaultAsync(r => r.RecipeId == id);
+
             if (recipe == null) return NotFound("Recipe not found.");
 
             _context.Recipes.Remove(recipe);

@@ -41,6 +41,8 @@ namespace Cold_Storage_GO
         public DbSet<Comment> Comments { get; set; }
         public DbSet<Discussion> Discussions { get; set; }
         public DbSet<Recipe> Recipes { get; set; }
+        public DbSet<Ingredient> Ingredients { get; set; }
+        public DbSet<Instruction> Instructions { get; set; }
         public DbSet<AIRecommendation> AIRecommendations { get; set; }
         public DbSet<Subscription> Subscriptions { get; set; }
         public DbSet<Order> Orders { get; set; }
@@ -88,6 +90,20 @@ namespace Cold_Storage_GO
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
                     v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions)null)
                 );
+
+            // Ingredients relationship
+            modelBuilder.Entity<Ingredient>()
+                .HasOne<Recipe>()
+                .WithMany(r => r.Ingredients)
+                .HasForeignKey(i => i.RecipeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Instructions relationship
+            modelBuilder.Entity<Instruction>()
+                .HasOne<Recipe>()
+                .WithMany(r => r.Instructions)
+                .HasForeignKey(instr => instr.RecipeId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

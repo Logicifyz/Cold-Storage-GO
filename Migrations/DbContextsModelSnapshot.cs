@@ -236,6 +236,64 @@ namespace Cold_Storage_GO.Migrations
                     b.ToTable("Follows");
                 });
 
+            modelBuilder.Entity("Cold_Storage_GO.Models.Ingredient", b =>
+                {
+                    b.Property<Guid>("IngredientId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("Quantity")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.HasKey("IngredientId");
+
+                    b.HasIndex("RecipeId");
+
+                    b.ToTable("Ingredients");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.Instruction", b =>
+                {
+                    b.Property<Guid>("InstructionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("MediaUrl")
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Step")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<int>("StepNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("InstructionId");
+
+                    b.HasIndex("RecipeId");
+
+                    b.ToTable("Instructions");
+                });
+
             modelBuilder.Entity("Cold_Storage_GO.Models.MealKit", b =>
                 {
                     b.Property<Guid>("MealKitId")
@@ -371,16 +429,6 @@ namespace Cold_Storage_GO.Migrations
 
                     b.Property<int>("Downvotes")
                         .HasColumnType("int");
-
-                    b.Property<string>("Ingredients")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<string>("Instructions")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("varchar(2000)");
 
                     b.Property<string>("MediaUrls")
                         .IsRequired()
@@ -805,6 +853,24 @@ namespace Cold_Storage_GO.Migrations
                     b.Navigation("Follower");
                 });
 
+            modelBuilder.Entity("Cold_Storage_GO.Models.Ingredient", b =>
+                {
+                    b.HasOne("Cold_Storage_GO.Models.Recipe", null)
+                        .WithMany("Ingredients")
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.Instruction", b =>
+                {
+                    b.HasOne("Cold_Storage_GO.Models.Recipe", null)
+                        .WithMany("Instructions")
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Cold_Storage_GO.Models.NutritionalFacts", b =>
                 {
                     b.HasOne("Cold_Storage_GO.Models.Dish", "Dish")
@@ -841,6 +907,13 @@ namespace Cold_Storage_GO.Migrations
             modelBuilder.Entity("Cold_Storage_GO.Models.Comment", b =>
                 {
                     b.Navigation("Replies");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.Recipe", b =>
+                {
+                    b.Navigation("Ingredients");
+
+                    b.Navigation("Instructions");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.User", b =>
