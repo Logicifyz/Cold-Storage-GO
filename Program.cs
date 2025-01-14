@@ -4,6 +4,7 @@ using Cold_Storage_GO;
 using Cold_Storage_GO.Services;
 using Cold_Storage_GO.Middleware;
 using Cold_Storage_GO.Services;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -83,6 +84,16 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Serve static files from the "MediaFiles" folder
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(Directory.GetCurrentDirectory(), "MediaFiles")),
+    RequestPath = "/MediaFiles"
+});
+
+
 app.UseCors("AllowReactApp"); // CORS middleware must come before Authorization
 app.UseAuthentication();      // Add this if you are using authentication
 app.UseAuthorization();

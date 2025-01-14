@@ -21,6 +21,7 @@
 
 	<ItemGroup>
 		<Folder Include="Controllers\" />
+		<Folder Include="MediaFiles\" />
 		<Folder Include="Migrations\" />
 	</ItemGroup>
 
