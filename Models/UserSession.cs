@@ -27,6 +27,7 @@ namespace Cold_Storage_GO.Models
     {
         public Guid MealKitId { get; set; }
         public int Quantity { get; set; }
+        public int Price { get; set; }
     }
 
 }

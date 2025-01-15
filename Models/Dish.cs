@@ -18,7 +18,7 @@ namespace Cold_Storage_GO.Models
         public string Name { get; set; } // Required
 
         [Required]
-        [StringLength(300)]
+        [StringLength(1000)]
         public string Instructions { get; set; } // Required
     }
 

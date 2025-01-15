@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cold_Storage_GO.Migrations
 {
     [DbContext(typeof(DbContexts))]
-    [Migration("20250112140716_SubManage")]
-    partial class SubManage
+    [Migration("20250114143338_ChangeStringLengthMealKit")]
+    partial class ChangeStringLengthMealKit
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -191,18 +191,10 @@ namespace Cold_Storage_GO.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<string>("Ingredients")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
                     b.Property<string>("Instructions")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<Guid?>("MealKitId")
-                        .HasColumnType("char(36)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -243,11 +235,15 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime");
 
-                    b.Property<Guid>("DishId")
-                        .HasColumnType("char(36)");
+                    b.Property<string>("DishIdsSerialized")
+                        .HasColumnType("longtext")
+                        .HasColumnName("DishIds");
 
                     b.Property<DateTime>("ExpiryDate")
                         .HasColumnType("datetime");
+
+                    b.Property<string>("Ingredients")
+                        .HasColumnType("longtext");
 
                     b.Property<byte[]>("ListingImage")
                         .HasColumnType("longblob");
@@ -289,10 +285,6 @@ namespace Cold_Storage_GO.Migrations
 
                     b.Property<int>("DietaryFibre")
                         .HasColumnType("int");
-
-                    b.Property<string>("Ingredients")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
 
                     b.Property<int>("Protein")
                         .HasColumnType("int");

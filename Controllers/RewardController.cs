@@ -2,9 +2,11 @@
 using Microsoft.EntityFrameworkCore;
 using Cold_Storage_GO.Models;
 using System;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Cold_Storage_GO.Controllers
 {
+    [AllowAnonymous]
     [Route("api/[controller]")]
     [ApiController]
     public class RewardsController : ControllerBase

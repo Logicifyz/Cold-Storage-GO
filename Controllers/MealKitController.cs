@@ -178,6 +178,6 @@ namespace Cold_Storage_GO.Controllers
         public List<string>? Tags { get; set; }
 
         [StringLength(1000, ErrorMessage = "Ingredients length cannot exceed 1000 characters.")]
-        public string Ingredients { get; set; }
+        public string Ingredients { get; set; } 
     }
 }

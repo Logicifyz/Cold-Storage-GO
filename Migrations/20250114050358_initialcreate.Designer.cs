@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cold_Storage_GO.Migrations
 {
     [DbContext(typeof(DbContexts))]
-    [Migration("20250113022318_initialcreate")]
+    [Migration("20250114050358_initialcreate")]
     partial class initialcreate
     {
         /// <inheritdoc />
@@ -535,7 +535,7 @@ namespace Cold_Storage_GO.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<bool>("AutoRenewal")
+                    b.Property<bool?>("AutoRenewal")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("DeliveryTimeSlot")
@@ -548,14 +548,20 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<int>("Frequency")
                         .HasColumnType("int");
 
-                    b.Property<bool>("IsFrozen")
+                    b.Property<bool?>("IsFrozen")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<Guid>("MealKitId")
                         .HasColumnType("char(36)");
 
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<string>("StripeSessionId")
+                        .HasColumnType("longtext");
 
                     b.Property<string>("SubscriptionChoice")
                         .IsRequired()

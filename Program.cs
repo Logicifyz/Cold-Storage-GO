@@ -1,9 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authentication.Negotiate;
-using Microsoft.OpenApi.Models; // Make sure to include this for Swagger
+using Microsoft.OpenApi.Models;
 using Cold_Storage_GO;
 using Cold_Storage_GO.Services;
 using Cold_Storage_GO.Middleware;
-using Cold_Storage_GO.Services;
 using Cold_Storage_GO.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,46 +12,27 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        policy.WithOrigins("http://localhost:3002") // Allow React app
+              .AllowAnyHeader()                   // Allow any headers
+              .AllowAnyMethod()                   // Allow any HTTP methods
+              .AllowCredentials();                // Allow cookies/credentials
     });
 });
 
-// ✅ Register Controllers explicitly
-// Add services to the container.
+// Register controllers explicitly
 builder.Services.AddControllers();
 
-// ✅ Correct way to initialize Stripe without namespace conflicts
+// Stripe settings (optional, based on your project)
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
 
-
-// ✅ Register Services Explicitly to Prevent Conflicts
+// Register services
 builder.Services.AddDbContext<DbContexts>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<DeliveryService>();
 builder.Services.AddSingleton<EmailService>();
 builder.Logging.AddConsole();
 
-
-// ✅ CORS Setup for React Frontend Integration
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowReactApp", policy =>
-    {
-        policy.WithOrigins("http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
-});
-
-// ✅ Register Controllers
-builder.Services.AddControllers();
-builder.Services.AddScoped<Cold_Storage_GO.Services.SubscriptionService>();
-
-// ✅ Swagger Configuration with Security Definition for Session Tokens
+// Swagger configuration with security definition for session tokens
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -81,7 +61,7 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// ✅ Authentication Setup
+// Authentication setup
 builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
    .AddNegotiate();
 
@@ -90,7 +70,7 @@ builder.Services.AddAuthorization(options =>
     options.FallbackPolicy = options.DefaultPolicy;
 });
 
-// ✅ Middleware Pipeline
+// Middleware pipeline
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -98,8 +78,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
 app.UseHttpsRedirection();
-app.UseCors("AllowReactApp");
+app.UseCors("AllowReactApp"); // CORS must be placed before authentication & controllers
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<SessionMiddleware>();

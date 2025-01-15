@@ -190,8 +190,8 @@ namespace Cold_Storage_GO.Migrations
 
                     b.Property<string>("Instructions")
                         .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("varchar(300)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<string>("Name")
                         .IsRequired()

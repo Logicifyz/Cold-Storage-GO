@@ -270,11 +270,13 @@ namespace Cold_Storage_GO.Migrations
                     Frequency = table.Column<int>(type: "int", nullable: false),
                     StartDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     EndDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    AutoRenewal = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    AutoRenewal = table.Column<bool>(type: "tinyint(1)", nullable: true),
                     DeliveryTimeSlot = table.Column<string>(type: "longtext", nullable: false),
                     SubscriptionType = table.Column<string>(type: "longtext", nullable: false),
-                    IsFrozen = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    SubscriptionChoice = table.Column<string>(type: "longtext", nullable: false)
+                    IsFrozen = table.Column<bool>(type: "tinyint(1)", nullable: true),
+                    StripeSessionId = table.Column<string>(type: "longtext", nullable: true),
+                    SubscriptionChoice = table.Column<string>(type: "longtext", nullable: false),
+                    Price = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
                 },
                 constraints: table =>
                 {

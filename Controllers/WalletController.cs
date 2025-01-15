@@ -4,9 +4,11 @@ using Cold_Storage_GO.Models;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Cold_Storage_GO.Controllers
 {
+    [AllowAnonymous]
     [Route("api/[controller]")]
     [ApiController]
     public class WalletController : ControllerBase
@@ -20,8 +22,22 @@ namespace Cold_Storage_GO.Controllers
 
         // POST: api/Wallet/create
         [HttpPost("create")]
-        public async Task<IActionResult> CreateWallet(Guid userId)
+        public async Task<IActionResult> CreateWallet()
         {
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                return Unauthorized("User is not logged in.");
+            }
+
+            var userSession = await _context.UserSessions.FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+            if (userSession == null)
+            {
+                return Unauthorized("User session is invalid or has expired.");
+            }
+
+            var userId = userSession.UserId;
+
             // Check if the user exists
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
@@ -46,11 +62,24 @@ namespace Cold_Storage_GO.Controllers
             return CreatedAtAction("GetWallet", new { userId = userId }, wallet);
         }
 
-
-        // GET: api/Wallet/{userId}
-        [HttpGet("{userId}")]
-        public async Task<ActionResult<Wallet>> GetWallet(Guid userId)
+        // GET: api/Wallet
+        [HttpGet]
+        public async Task<ActionResult<Wallet>> GetWallet()
         {
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                return Unauthorized("User is not logged in.");
+            }
+
+            var userSession = await _context.UserSessions.FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+            if (userSession == null)
+            {
+                return Unauthorized("User session is invalid or has expired.");
+            }
+
+            var userId = userSession.UserId;
+
             var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userId);
             if (wallet == null)
                 return NotFound();
@@ -60,13 +89,18 @@ namespace Cold_Storage_GO.Controllers
 
         // POST: api/Wallet/earn
         [HttpPost("earn")]
-        public async Task<IActionResult> EarnCoins(Guid userId, int coins)
+        public async Task<IActionResult> EarnCoins([FromBody] EarnCoinsRequest request)
         {
-            var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userId);
-            if (wallet == null)
-                return NotFound();
+            if (request == null || request.Coins <= 0)
+            {
+                return BadRequest("Invalid request data.");
+            }
 
-            wallet.CoinsEarned += coins;
+            var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == request.UserId);
+            if (wallet == null)
+                return NotFound("Wallet not found.");
+
+            wallet.CoinsEarned += request.Coins;
             await _context.SaveChangesAsync();
 
             return Ok(wallet);
@@ -74,25 +108,58 @@ namespace Cold_Storage_GO.Controllers
 
         // POST: api/Wallet/deduct
         [HttpPost("deduct")]
-        public async Task<IActionResult> DeductCoins(Guid userId, int coins)
+        public async Task<IActionResult> DeductCoins([FromBody] DeductCoinsRequest request)
         {
-            var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userId);
-            if (wallet == null)
-                return NotFound();
+            if (request == null || request.Coins <= 0)
+            {
+                return BadRequest("Invalid request data.");
+            }
 
-            if (wallet.CurrentBalance < coins)
+            var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == request.UserId);
+
+            if (wallet == null)
+                return NotFound("Wallet not found.");
+
+            if (wallet.CurrentBalance < request.Coins)
                 return BadRequest("Insufficient balance.");
 
-            wallet.CoinsRedeemed += coins;
+            wallet.CoinsRedeemed += request.Coins;
             await _context.SaveChangesAsync();
 
             return Ok(wallet);
         }
 
+        public class EarnCoinsRequest
+        {
+            public Guid UserId { get; set; } // Changed from int to Guid
+            public int Coins { get; set; }
+        }
+
+        public class DeductCoinsRequest
+        {
+            public Guid UserId { get; set; } // Changed from int to Guid
+            public int Coins { get; set; }
+        }
+
+
         // POST: api/Wallet/redeem
         [HttpPost("redeem")]
-        public async Task<IActionResult> RedeemReward(Guid userId, Guid rewardId)
+        public async Task<IActionResult> RedeemReward(Guid rewardId)
         {
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                return Unauthorized("User is not logged in.");
+            }
+
+            var userSession = await _context.UserSessions.FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+            if (userSession == null)
+            {
+                return Unauthorized("User session is invalid or has expired.");
+            }
+
+            var userId = userSession.UserId;
+
             var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userId);
             var reward = await _context.Rewards.FindAsync(rewardId);
 
@@ -121,5 +188,48 @@ namespace Cold_Storage_GO.Controllers
 
             return CreatedAtAction("GetWallet", new { userId = userId }, redemption);
         }
+
+        // GET: api/Wallet/redemptions
+        [HttpGet("redemptions")]
+        public async Task<IActionResult> GetUserRedemptions()
+        {
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                return Unauthorized("User is not logged in.");
+            }
+
+            // Validate the session
+            var userSession = await _context.UserSessions.FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+            if (userSession == null)
+            {
+                return Unauthorized("User session is invalid or has expired.");
+            }
+
+            var userId = userSession.UserId;
+
+            // Query the redemptions for the user
+            var redemptions = await _context.Redemptions
+                .Where(r => r.UserId == userId)
+                .Select(r => new
+                {
+                    r.RedemptionId,
+                    r.RewardId,
+                    r.RedeemedAt,
+                    r.ExpiryDate,
+                    r.RewardUsable
+                })
+                .ToListAsync();
+
+            // If no redemptions are found
+            if (redemptions == null || !redemptions.Any())
+            {
+                return NotFound("No redemptions found for the user.");
+            }
+
+            return Ok(redemptions);
+        }
+
+
     }
 }
