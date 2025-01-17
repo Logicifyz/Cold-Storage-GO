@@ -127,6 +127,9 @@ namespace Cold_Storage_GO.Controllers
             var userUserSessions = await _context.UserSessions.Where(s => s.UserId == user.UserId).ToListAsync();
             _context.UserSessions.RemoveRange(userUserSessions);
 
+            CookieService.RemoveCookie(HttpContext, "SessionId");
+
+
             // Delete the user's profile if it exists
             var userProfile = await _context.UserProfiles.Where(up => up.UserId == user.UserId).FirstOrDefaultAsync();
             if (userProfile != null)

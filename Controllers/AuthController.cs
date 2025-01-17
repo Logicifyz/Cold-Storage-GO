@@ -1,10 +1,14 @@
 ﻿using Cold_Storage_GO;
 using Cold_Storage_GO.Models;
 using Cold_Storage_GO.Services;
+using Google.Apis.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MySqlX.XDevAPI;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
+using static AuthController;
 
 [AllowAnonymous]
 [ApiController]
@@ -13,11 +17,16 @@ public class AuthController : ControllerBase
 {
     private readonly DbContexts _context;
     private readonly EmailService _emailService;
+    private readonly GoogleAuthService _googleAuthService;
+    private readonly string _clientId = "869557804479-pv18rpo94fbpd6hatmns6m4nes5adih8.apps.googleusercontent.com";  // Replace with your actual Google client ID
 
-    public AuthController(DbContexts context, EmailService emailService)
+
+    public AuthController(DbContexts context, EmailService emailService, GoogleAuthService googleAuthService)
     {
         _context = context;
         _emailService = emailService;
+        _googleAuthService = googleAuthService;
+
     }
 
     [HttpPost("register")]
@@ -516,8 +525,271 @@ public class AuthController : ControllerBase
 
 
 
+    [HttpPost("google-login")]
+    public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request)
+    {
+        // Verify Google ID token
+        var googleUser = await VerifyGoogleTokenAsync(request.IdToken);
+
+        if (googleUser == null)
+        {
+            return Unauthorized(new { message = "Invalid Google token" });
+        }
+
+        if (string.IsNullOrEmpty(googleUser.Email))
+        {
+            return BadRequest(new { message = "Google login did not return a valid email" });
+        }
+
+        // Check if the user exists in your database
+        var user = await _context.Users
+            .Include(u => u.UserProfile)
+            .Include(u => u.UserAdministration)
+            .FirstOrDefaultAsync(u => u.Email == googleUser.Email);
+
+        if (user == null)
+        {
+            // User doesn't exist, create a new user
+            user = new User
+            {
+                UserId = Guid.NewGuid(),
+                Email = googleUser.Email,
+                Username = googleUser.Name,
+                Role = "user", // Default role is "user"
+                PasswordHash = "google-login" // Password not required for Google sign-in
+            };
+
+            var profile = new UserProfile
+            {
+                FullName = googleUser.Name,
+                PhoneNumber = "", // Optional to handle
+                StreetAddress = "", // Optional to handle
+                PostalCode = "", // Optional to handle
+                User = user
+            };
+
+            var userAdmin = new UserAdministration
+            {
+                UserId = user.UserId,
+                Verified = true, // Assuming the user is verified right after Google login
+                VerificationToken = null, // No need for verification token
+                Activation = true, // Mark as active
+                FailedLoginAttempts = 0,
+                LockoutUntil = null,
+                PasswordResetToken = null // Initially no reset token
+            };
+
+            // Automatically create wallet for the user
+            var wallet = new Wallet
+            {
+                WalletId = Guid.NewGuid(),
+                UserId = user.UserId,
+                CoinsEarned = 0,
+                CoinsRedeemed = 0
+            };
+
+            // Add User, Profile, UserAdministration, and Wallet to the database
+            _context.Users.Add(user);
+            _context.UserProfiles.Add(profile);
+            _context.UserAdministration.Add(userAdmin);
+            _context.Wallets.Add(wallet);
+            await _context.SaveChangesAsync();
+        }
+
+        // Check if password is set for the user
+        if (string.IsNullOrEmpty(user.PasswordHash) || user.PasswordHash == "google-login")
+        {
+            // If password is not set, generate a reset token and send the email
+            var passwordResetToken = Guid.NewGuid().ToString();
+
+            // Update the UserAdministration with the password reset token
+            var userAdmin = user.UserAdministration;
+            userAdmin.PasswordResetToken = passwordResetToken;
+            _context.UserAdministration.Update(userAdmin);
+            await _context.SaveChangesAsync();
+
+            var resetUrl = $"{Request.Scheme}://localhost:3000/setpassword/{passwordResetToken}";
+
+            // Send the password set email
+            var emailSent = await _emailService.SendEmailAsync(
+                user.Email,
+                "Set Your Password",
+                $"Please set your password by clicking on the following link: <a href='{resetUrl}'>Set Password</a>"
+            );
+
+            if (!emailSent)
+            {
+                return StatusCode(500, "Failed to send the password set email.");
+            }
+        }
+
+        // Now, create the session regardless of whether the password was set or not
+        var sessionId = Guid.NewGuid().ToString();
+        var session = new UserSession
+        {
+            UserSessionId = sessionId,
+            UserId = user.UserId,
+            CreatedAt = DateTime.UtcNow,
+            LastAccessed = DateTime.UtcNow,
+            Data = "{}",
+            IsActive = true
+        };
+
+        _context.UserSessions.Add(session);
+        await _context.SaveChangesAsync();
+
+        // Set the session ID in a cookie
+        CookieService.SetCookie(HttpContext, "SessionId", sessionId);
+
+        return Ok(new
+        {
+            success = true,
+            message = "Google login successful!",
+            UserSessionId = sessionId,
+            UserId = user.UserId,
+            Username = user.Username,
+            Role = user.Role,
+            Profile = new
+            {
+                user.UserProfile.FullName,
+                user.UserProfile.PhoneNumber,
+                user.UserProfile.StreetAddress,
+                user.UserProfile.PostalCode
+            }
+        });
+    }
+
+
+
+
+    public async Task<GoogleJsonWebSignature.Payload> VerifyGoogleTokenAsync(string idToken)
+    {
+        try
+        {
+            var payload = await GoogleJsonWebSignature.ValidateAsync(idToken, new GoogleJsonWebSignature.ValidationSettings
+            {
+                Audience = new[] { _clientId } // Ensure this matches your actual client ID
+            });
+
+            return payload; // This should contain the user details like email and name
+        }
+        catch (Exception ex)
+        {
+            // Log or throw specific error here
+            throw new Exception("Invalid Google token", ex);
+        }
+    }
+
+    [HttpPost("request-password-set")]
+    public async Task<IActionResult> RequestPasswordSet()
+    {
+        var sessionId = HttpContext.Request.Cookies["SessionId"];
+
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            return Ok(new { sessionValid = false });
+        }
+
+        // Find the session by SessionId and ensure it's active
+        var session = await _context.UserSessions
+            .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+        if (session == null)
+        {
+            return BadRequest(new { Message = "Session is not valid or active." });
+        }
+
+        // Get the user based on the session information
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.UserId == session.UserId);
+
+        if (user == null)
+        {
+            return BadRequest(new { Message = "User not found." });
+        }
+
+        var userAdmin = await _context.UserAdministration
+            .Include(ua => ua.User)
+            .FirstOrDefaultAsync(ua => ua.User.Email == user.Email);
+
+        if (userAdmin == null)
+            return BadRequest(new { Message = "No user found with the provided email." });
+
+        // Check if the password has already been set
+        if (!string.IsNullOrEmpty(userAdmin.User.PasswordHash) && userAdmin.User.PasswordHash != "google-login")
+        {
+            return BadRequest(new { Message = "Password has already been set." });
+        }
+
+        // Generate password set token (similar to password reset token)
+        userAdmin.PasswordResetToken = Guid.NewGuid().ToString(); // Reusing the reset token for setting the password
+
+        _context.UserAdministration.Update(userAdmin);
+        await _context.SaveChangesAsync();
+
+        // Generate the set password URL
+        var setPasswordUrl = $"{Request.Scheme}://localhost:3000/setpassword/{userAdmin.PasswordResetToken}";
+
+        // Send the password set token via email
+        var emailSent = await _emailService.SendEmailAsync(
+            user.Email,
+            "Set Your Password",
+            $"Please set your password by clicking on the following link: <a href='{setPasswordUrl}'>Set Password</a>"
+        );
+
+        if (!emailSent)
+            return StatusCode(500, "Failed to send the email.");
+
+        return Ok(new { success = true, Message = "Password set token generated.", Token = userAdmin.PasswordResetToken });
+    }
+
+
+
+    [HttpPost("set-password")]
+    public async Task<IActionResult> SetPassword([FromBody] PasswordSetTokenRequest request)
+    {
+        var userAdmin = await _context.UserAdministration
+            .Include(ua => ua.User)
+            .FirstOrDefaultAsync(ua => ua.PasswordResetToken == request.Token);
+
+        if (userAdmin == null || string.IsNullOrEmpty(userAdmin.PasswordResetToken))
+            return BadRequest(new { message = "Invalid or expired token." });
+
+        // Check if the password has already been set
+        if (!string.IsNullOrEmpty(userAdmin.User.PasswordHash) && userAdmin.User.PasswordHash != "google-login")
+        {
+            return BadRequest(new { message = "Password has already been set." });
+        }
+
+        // Set the password and invalidate the token
+        userAdmin.User.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        userAdmin.PasswordResetToken = null; // Nullify the token after use
+
+        _context.UserAdministration.Update(userAdmin);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { success = true, Message = "Password set successfully." });
+    }
+
 
     // Request Models
+    public class PasswordSetTokenRequest
+    {
+        public string Token { get; set; }  // The password set token from the email
+        public string NewPassword { get; set; }  // The new password to be set
+    }
+
+    public class GoogleUser
+    {
+        public string Email { get; set; }
+        public string Name { get; set; }
+    }
+    public class GoogleLoginRequest
+    {
+        [Required]
+        public string IdToken { get; set; }
+    }
+
     public class RegisterRequest
     {
         [Required(ErrorMessage = "Email is required.")]
