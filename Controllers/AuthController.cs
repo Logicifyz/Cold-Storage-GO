@@ -26,107 +26,118 @@ public class AuthController : ControllerBase
         // Check if the model is valid
         if (!ModelState.IsValid)
         {
-            return BadRequest(ModelState); // Return validation errors
+            return BadRequest(new { success = false, message = "Validation failed.", details = ModelState });
         }
 
         // Check if email is already taken
         if (await _context.Users.AnyAsync(u => u.Email == request.Email))
         {
-            return BadRequest("Email is already in use.");
+            return BadRequest(new { success = false, message = "Email is already in use." });
         }
 
         // Check if username is already taken
         if (await _context.Users.AnyAsync(u => u.Username == request.Username))
         {
-            return BadRequest("Username is already taken.");
+            return BadRequest(new { success = false, message = "Username is already taken." });
         }
 
         // Password and Confirm Password do not match
         if (request.Password != request.ConfirmPassword)
         {
-            return BadRequest("Password and confirm password do not match.");
+            return BadRequest(new { success = false, message = "Password and confirm password do not match." });
         }
 
-        // Create User
-        var user = new User
+        try
         {
-            UserId = Guid.NewGuid(), // Generate UUID for the user
-            Email = request.Email,
-            Username = request.Username,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password), // Hash password
-            Role = "user" // Default role is "user"
-        };
+            // Create User
+            var user = new User
+            {
+                UserId = Guid.NewGuid(), // Generate UUID for the user
+                Email = request.Email,
+                Username = request.Username,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password), // Hash password
+                Role = "user" // Default role is "user"
+            };
 
-        // Create UserProfile
-        var profile = new UserProfile
+            // Create UserProfile
+            var profile = new UserProfile
+            {
+                FullName = request.FullName,
+                PhoneNumber = request.PhoneNumber,
+                StreetAddress = request.StreetAddress,
+                PostalCode = request.PostalCode,
+                User = user // Link profile to user
+            };
+
+            var userAdmin = new UserAdministration
+            {
+                UserId = user.UserId,
+                Verified = false,
+                VerificationToken = Guid.NewGuid().ToString(), // Generate verification token
+                Activation = true,
+                FailedLoginAttempts = 0,
+                PasswordResetToken = null // Initially no reset token
+            };
+
+            // Automatically create wallet for the user
+            var wallet = new Wallet
+            {
+                WalletId = Guid.NewGuid(),
+                UserId = user.UserId,
+                CoinsEarned = 0,
+                CoinsRedeemed = 0
+            };
+
+            // Add User and Profile to the database
+            _context.Users.Add(user);
+            _context.Wallets.Add(wallet);
+            _context.UserProfiles.Add(profile);
+            _context.UserAdministration.Add(userAdmin);
+
+            await _context.SaveChangesAsync();
+
+            // Create a session for the user by generating a session ID
+            var sessionId = Guid.NewGuid().ToString(); // Generate a unique session ID
+
+            var session = new UserSession
+            {
+                UserSessionId = sessionId,
+                UserId = user.UserId,
+                CreatedAt = DateTime.UtcNow,
+                LastAccessed = DateTime.UtcNow,
+                Data = "{}",
+                IsActive = true
+            };
+
+            _context.UserSessions.Add(session);
+            await _context.SaveChangesAsync();
+
+            // Set the session ID as a cookie in the response
+            CookieService.SetCookie(HttpContext, "SessionId", sessionId);
+
+            // Send verification email
+            var verificationUrl = $"{Request.Scheme}://localhost:3000/verify-account/{userAdmin.VerificationToken}";
+
+            // Send the verification email with the URL
+            var emailSent = await _emailService.SendEmailAsync(
+                request.Email,
+                "Email Verification",
+                $"Please verify your email by clicking on the following link: <a href='{verificationUrl}'>Verify Email</a>"
+            );
+
+            if (!emailSent)
+            {
+                return StatusCode(500, new { success = false, message = "Failed to send verification email." });
+            }
+
+            return Ok(new { success = true, message = "Registration successful. Please check your email for verification.", wallet });
+        }
+        catch (Exception ex)
         {
-            FullName = request.FullName,
-            PhoneNumber = request.PhoneNumber,
-            StreetAddress = request.StreetAddress,
-            PostalCode = request.PostalCode,
-            User = user // Link profile to user
-        };
-
-        var userAdmin = new UserAdministration
-        {
-            UserId = user.UserId,
-            Verified = false,
-            VerificationToken = Guid.NewGuid().ToString(), // Generate verification token
-            Activation = true,
-            FailedLoginAttempts = 0,
-            PasswordResetToken = null // Initially no reset token
-        };
-
-        // Automatically create wallet for the user
-        var wallet = new Wallet
-        {
-            WalletId = Guid.NewGuid(),
-            UserId = user.UserId,
-            CoinsEarned = 0,
-            CoinsRedeemed = 0
-        };
-
-        // Add User and Profile to the database
-        _context.Users.Add(user);
-        _context.Wallets.Add(wallet);
-        _context.UserProfiles.Add(profile);
-        _context.UserAdministration.Add(userAdmin);
-
-        await _context.SaveChangesAsync();
-
-        // Create a session for the user by generating a session ID
-        var sessionId = Guid.NewGuid().ToString(); // Generate a unique session ID
-
-        var session = new UserSession
-        {
-            UserSessionId = sessionId,
-            UserId = user.UserId,
-            CreatedAt = DateTime.UtcNow,
-            LastAccessed = DateTime.UtcNow,
-            Data = "{}",
-            IsActive = true
-        };
-
-        _context.UserSessions.Add(session);
-        await _context.SaveChangesAsync();
-        // Set the session ID as a cookie in the response
-        CookieService.SetCookie(HttpContext, "SessionId", sessionId);
-
-        // Send verification email
-        var verificationUrl = $"{Request.Scheme}://localhost:3000/verify-account/{userAdmin.VerificationToken}";
-
-        // Send the verification email with the URL
-        var emailSent = await _emailService.SendEmailAsync(
-            request.Email,
-            "Email Verification",
-            $"Please verify your email by clicking on the following link: <a href='{verificationUrl}'>Verify Email</a>"
-        );
-
-        if (!emailSent)
-            return StatusCode(500, "Failed to send verification email.");
-
-        return Ok(new { success = true, Message = "Registration successful. Please check your email for verification.", wallet });
+            return StatusCode(500, new { success = false, message = "An unexpected error occurred.", details = ex.Message });
+        }
     }
+
 
 
     [HttpPost("login")]
@@ -248,7 +259,7 @@ public class AuthController : ControllerBase
             .FirstOrDefaultAsync(ua => ua.User.Email == request.Email);
 
         if (userAdmin == null)
-            return BadRequest("No user found with the provided email.");
+            return BadRequest(new { Message = "No user found with the provided email." });
 
         // Generate password reset token
         userAdmin.PasswordResetToken = Guid.NewGuid().ToString();
@@ -282,7 +293,7 @@ public class AuthController : ControllerBase
             .FirstOrDefaultAsync(ua => ua.PasswordResetToken == request.Token);
 
         if (userAdmin == null || string.IsNullOrEmpty(userAdmin.PasswordResetToken))
-            return BadRequest("Invalid or expired token.");
+            return BadRequest(new { message = "Invalid or expired token." });
 
         // Reset the password and invalidate the reset token
         userAdmin.User.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
@@ -303,7 +314,7 @@ public class AuthController : ControllerBase
             .FirstOrDefaultAsync(ua => ua.VerificationToken == token);
 
         if (userAdmin == null)
-            return BadRequest("Invalid or expired verification token.");
+            return BadRequest(new { Message = "Invalid or expired verification token." });
 
         // Mark the user as verified and invalidate the token
         userAdmin.Verified = true;
@@ -311,7 +322,7 @@ public class AuthController : ControllerBase
 
         _context.UserAdministration.Update(userAdmin);
         await _context.SaveChangesAsync();
-
+                                                                                                        
         return Ok(new { Message = "Email verified successfully." });
     }
 
@@ -432,6 +443,77 @@ public class AuthController : ControllerBase
             Role = staff.Role
         });
     }
+
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        // Retrieve the session ID from the cookies
+        var sessionId = Request.Cookies["SessionId"];
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            return Unauthorized(new { success = false, message = "No active session found." });
+        }
+
+        // Find the active session for the user
+        var session = await _context.UserSessions
+            .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+        if (session == null)
+        {
+            return Unauthorized(new { success = false, message = "Session not found or already expired." });
+        }
+
+        // Mark the session as inactive
+        session.IsActive = false;
+        _context.UserSessions.Update(session);
+        await _context.SaveChangesAsync();
+
+        // Remove the session cookie
+        CookieService.RemoveCookie(HttpContext, "SessionId");
+
+        return Ok(new { success = true, message = "Logout successful." });
+    }
+
+    [HttpGet("check-session")]
+    public async Task<IActionResult> CheckSession()
+    {
+        // Retrieve the SessionId from cookies
+        var sessionId = HttpContext.Request.Cookies["SessionId"];
+
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            return Ok(new { sessionValid = false });
+        }
+
+        // Find the session by SessionId and ensure it's active
+        var session = await _context.UserSessions
+            .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+        if (session == null)
+        {
+            return Ok(new { sessionValid = false });
+        }
+
+        // Update the last accessed time for the session
+        session.LastAccessed = DateTime.UtcNow;
+        _context.UserSessions.Update(session);
+        await _context.SaveChangesAsync();
+
+        // Retrieve the user associated with this session
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.UserId == session.UserId); // Assuming UserId is stored in the session
+
+        if (user == null)
+        {
+            return Ok(new { sessionValid = false });
+        }
+
+        // Return session validity, userId, and username
+        return Ok(new { sessionValid = true, userId = user.UserId, username = user.Username });
+    }
+
+
+
 
 
 

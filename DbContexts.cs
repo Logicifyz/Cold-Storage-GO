@@ -61,13 +61,13 @@ namespace Cold_Storage_GO
                 .HasOne(f => f.Follower)
                 .WithMany(f => f.Following)
                 .HasForeignKey(f => f.FollowerId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);  // Change Restrict to Cascade
 
             modelBuilder.Entity<Follows>()
                 .HasOne(f => f.Followed)
                 .WithMany(f => f.Followers)
                 .HasForeignKey(f => f.FollowedId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Configure NutritionalFacts relationships
             modelBuilder.Entity<NutritionalFacts>()
