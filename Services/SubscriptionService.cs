@@ -1,35 +1,23 @@
 ﻿using Cold_Storage_GO.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Cold_Storage_GO.Services
 {
     public class SubscriptionService
     {
         private readonly DbContexts _context;
+        private readonly ILogger<SubscriptionService> _logger;
 
-        public SubscriptionService(DbContexts context)
+        // ✅ Fixed constructor issue
+        public SubscriptionService(DbContexts context, ILogger<SubscriptionService> logger)
         {
             _context = context;
-        }
-
-        // ✅ Updated: Now includes SubscriptionChoice
-        public async Task CreateSubscriptionAsync(Guid userId, Guid mealKitId, int frequency, string deliveryTimeSlot, string subscriptionType, string subscriptionChoice)
-        {
-            var subscription = new Subscription
-            {
-                SubscriptionId = Guid.NewGuid(),
-                UserId = userId,
-                MealKitId = mealKitId,
-                Frequency = frequency,
-                DeliveryTimeSlot = deliveryTimeSlot,
-                SubscriptionType = subscriptionType,
-                SubscriptionChoice = subscriptionChoice,  // New field added
-                StartDate = DateTime.UtcNow,
-                EndDate = DateTime.UtcNow.AddDays(frequency * 7)
-            };
-
-            _context.Subscriptions.Add(subscription);
-            await _context.SaveChangesAsync();
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         // ✅ Staff Freezes a Subscription
@@ -37,14 +25,10 @@ namespace Cold_Storage_GO.Services
         {
             var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
             if (subscription == null)
-            {
                 throw new Exception("Subscription not found.");
-            }
 
-            if ((bool)subscription.IsFrozen)
-            {
+            if (subscription.IsFrozen.GetValueOrDefault()) // ✅ Fixed null issue
                 throw new Exception("Subscription is already frozen.");
-            }
 
             subscription.IsFrozen = true;
             _context.Subscriptions.Update(subscription);
@@ -55,99 +39,101 @@ namespace Cold_Storage_GO.Services
         {
             var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
             if (subscription == null)
-            {
                 throw new Exception("Subscription not found.");
-            }
 
             subscription.IsFrozen = false;
             _context.Subscriptions.Update(subscription);
             await _context.SaveChangesAsync();
         }
 
-
         public async Task CancelSubscriptionAsync(Guid subscriptionId)
         {
             var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
-            if (subscription == null) throw new Exception("Subscription not found.");
+            if (subscription == null)
+                throw new Exception("Subscription not found.");
 
-            _context.Subscriptions.Remove(subscription);
+            subscription.Status = "Canceled";
+            subscription.EndDate = DateTime.UtcNow;
+            _context.Subscriptions.Update(subscription);
 
-            // Refund points for all remaining days
-            int daysRemaining = (subscription.EndDate - DateTime.UtcNow.Date).Days;
-            int pointsToRefund = daysRemaining * 10;
-            Console.WriteLine($"User refunded {pointsToRefund} points.");
+            var user = await _context.Users
+                .Include(u => u.Subscriptions)
+                .FirstOrDefaultAsync(u => u.UserId == subscription.UserId);
+
+            if (user != null)
+            {
+                _logger.LogInformation($"✅ Subscription {subscriptionId} canceled for user {user.UserId}.");
+            }
 
             await _context.SaveChangesAsync();
         }
 
+        public async Task CreateSubscriptionAsync(Guid userId, int frequency, string deliveryTimeSlot, string subscriptionType, string subscriptionChoice, decimal price)
+        {
+            _logger.LogInformation($"🔍 Attempting to create subscription for UserId: {userId}");
 
-        // ✅ New: Get Subscriptions by SubscriptionChoice
-        public async Task<IEnumerable<Subscription>> GetSubscriptionsByChoiceAsync(string subscriptionChoice)
-        {
-            return await _context.Subscriptions
-                .Where(s => s.SubscriptionChoice == subscriptionChoice)
-                .ToListAsync();
-        }
+            var user = await _context.Users.Include(u => u.Subscriptions).FirstOrDefaultAsync(u => u.UserId == userId);
+            if (user == null)
+            {
+                _logger.LogError("❌ User not found.");
+                throw new Exception("User not found.");
+            }
 
-        // ✅ Staff Management: Get All Subscriptions
-        public async Task<IEnumerable<Subscription>> GetAllSubscriptionsAsync()
-        {
-            return await _context.Subscriptions.ToListAsync();
-        }
+            var lastSubscription = user.Subscriptions.OrderByDescending(s => s.EndDate).FirstOrDefault();
 
-        // ✅ Staff Management: Get Subscriptions by Status
-        public async Task<IEnumerable<Subscription>> GetSubscriptionsByStatusAsync(bool isFrozen)
-        {
-            return await _context.Subscriptions
-                .Where(s => s.IsFrozen == isFrozen)
-                .ToListAsync();
-        }
+            if (lastSubscription != null)
+            {
+                _logger.LogInformation($"✅ Found previous subscription with status: {lastSubscription.Status}");
 
-        // ✅ Staff Management: Search Subscriptions by User ID
-        public async Task<IEnumerable<Subscription>> SearchSubscriptionsAsync(string query)
-        {
-            return await _context.Subscriptions
-                .Where(s => s.UserId.ToString().Contains(query))
-                .ToListAsync();
-        }
-        public async Task CreateSubscriptionAsync(Guid userId, Guid mealKitId, int frequency, string deliveryTimeSlot, string subscriptionType, string subscriptionChoice, decimal price)
-        {
+                if (lastSubscription.Status == "Active")
+                {
+                    _logger.LogError("❌ User already has an active subscription.");
+                    throw new Exception("User already has an active subscription.");
+                }
+            }
+
             var subscription = new Subscription
             {
                 SubscriptionId = Guid.NewGuid(),
                 UserId = userId,
-                MealKitId = mealKitId,
                 Frequency = frequency,
                 DeliveryTimeSlot = deliveryTimeSlot,
                 SubscriptionType = subscriptionType,
                 SubscriptionChoice = subscriptionChoice,
                 Price = price,
-                StartDate = DateTime.UtcNow,
-                EndDate = DateTime.UtcNow.AddDays(frequency * 7),
-
-                // ✅ Set default values for nullable fields during creation
+                StartDate = DateTime.UtcNow.Date.AddDays(1),
+                EndDate = DateTime.UtcNow.Date.AddDays(subscriptionType.ToLower() == "weekly" ? 7 : 30),
                 AutoRenewal = false,
                 IsFrozen = false,
-                StripeSessionId = Guid.NewGuid().ToString()
+                Status = "Active"
             };
 
-            try
-            {
-                _context.Subscriptions.Add(subscription);
-                var result = await _context.SaveChangesAsync();
+            user.Subscriptions.Add(subscription);
+            _context.Subscriptions.Add(subscription);
+            await _context.SaveChangesAsync();
 
-                if (result <= 0)
-                {
-                    throw new Exception("Database write failed: No rows affected.");
-                }
+            _logger.LogInformation($"✅ Subscription successfully created for user {userId}.");
+        }
 
-                Console.WriteLine("✅ Subscription successfully saved to the database.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ Database Error: {ex.Message}");
-                throw;
-            }
+        public async Task<bool> UserHasSubscriptionAsync(Guid userId)
+        {
+            return await _context.Subscriptions
+                .AnyAsync(s => s.UserId == userId && s.Status == "Active");
+        }
+
+        public async Task<Subscription?> GetActiveSubscriptionByUserIdAsync(Guid userId)
+        {
+            return await _context.Subscriptions
+                .Where(s => s.UserId == userId && s.Status == "Active")
+                .FirstOrDefaultAsync();
+        }
+
+        public async Task<IEnumerable<Subscription>> GetSubscriptionHistoryAsync(Guid userId)
+        {
+            return await _context.Subscriptions
+                .Where(s => s.UserId == userId && (s.Status == "Canceled" || s.Status == "Expired"))
+                .OrderByDescending(s => s.EndDate)
+                .ToListAsync();
         }
 
         public async Task UpdateSubscriptionStatusAsync(Guid subscriptionId, UpdateSubscriptionRequest request)
@@ -164,23 +150,33 @@ namespace Cold_Storage_GO.Services
             await _context.SaveChangesAsync();
         }
 
-        public async Task ExtendSubscriptionAsync(Guid subscriptionId)
+        public async Task ExtendOrExpireSubscriptionAsync(Guid subscriptionId)
         {
             var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
             if (subscription == null) throw new Exception("Subscription not found.");
 
-            if ((bool)!subscription.AutoRenewal) return; // Only renew if auto-renewal is enabled
+            if (subscription.EndDate <= DateTime.UtcNow)
+            {
+                if (subscription.AutoRenewal.GetValueOrDefault()) // ✅ Fixed nullable bool issue
+                {
+                    DateTime nextStartDate = subscription.EndDate.AddDays(1).Date;
+                    int duration = subscription.SubscriptionType.ToLower() == "weekly" ? 7 : 30;
+                    DateTime nextEndDate = nextStartDate.AddDays(duration).AddSeconds(-1);
 
-            // Calculate next start and end date based on subscription type
-            DateTime nextStartDate = subscription.EndDate.AddDays(1).Date; // Start next day at midnight
-            int duration = subscription.SubscriptionType.ToLower() == "weekly" ? 7 : 30;
-            DateTime nextEndDate = nextStartDate.AddDays(duration).AddSeconds(-1);
+                    subscription.StartDate = nextStartDate;
+                    subscription.EndDate = nextEndDate;
+                    subscription.Status = "Active";
+                }
+                else
+                {
+                    subscription.Status = "Expired";
+                }
+            }
 
-            subscription.StartDate = nextStartDate;
-            subscription.EndDate = nextEndDate;
-
+            _context.Subscriptions.Update(subscription);
             await _context.SaveChangesAsync();
         }
+
         public async Task<Subscription> GetSubscriptionByIdAsync(Guid subscriptionId)
         {
             return await _context.Subscriptions.FindAsync(subscriptionId);
@@ -191,21 +187,21 @@ namespace Cold_Storage_GO.Services
             _context.Subscriptions.Update(subscription);
             await _context.SaveChangesAsync();
         }
+
         public async Task<Subscription?> GetSubscriptionByUserIdAsync(Guid userId)
         {
             try
             {
-                var subscription = await _context.Subscriptions
-                    .FirstOrDefaultAsync(s => s.UserId == userId);
-
-                return subscription;
+                return await _context.Subscriptions
+                    .FirstOrDefaultAsync(s => s.UserId == userId && s.Status == "Active");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error fetching subscription by user ID: {ex.Message}");
+                _logger.LogError($"❌ Error fetching subscription by user ID: {ex.Message}");
                 return null;
             }
         }
+
         public async Task ToggleAutoRenewalAsync(Guid subscriptionId)
         {
             var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
@@ -214,11 +210,30 @@ namespace Cold_Storage_GO.Services
                 throw new Exception("Subscription not found.");
             }
 
-            subscription.AutoRenewal = !subscription.AutoRenewal; // Toggle the value
-            _context.Subscriptions.Update(subscription);  // Ensure it tracks the entity
-            await _context.SaveChangesAsync();  // Persist the change
+            subscription.AutoRenewal = !subscription.AutoRenewal;
+            _context.Subscriptions.Update(subscription);
+            await _context.SaveChangesAsync();
         }
 
+        // ✅ Fixed: Re-added missing methods referenced in SubscriptionsController
+        public async Task<IEnumerable<Subscription>> GetSubscriptionsByChoiceAsync(string subscriptionChoice)
+        {
+            return await _context.Subscriptions.Where(s => s.SubscriptionChoice == subscriptionChoice).ToListAsync();
+        }
 
+        public async Task<IEnumerable<Subscription>> GetAllSubscriptionsAsync()
+        {
+            return await _context.Subscriptions.ToListAsync();
+        }
+
+        public async Task<IEnumerable<Subscription>> GetSubscriptionsByStatusAsync(bool isFrozen)
+        {
+            return await _context.Subscriptions.Where(s => s.IsFrozen == isFrozen).ToListAsync();
+        }
+
+        public async Task<IEnumerable<Subscription>> SearchSubscriptionsAsync(string query)
+        {
+            return await _context.Subscriptions.Where(s => s.UserId.ToString().Contains(query)).ToListAsync();
+        }
     }
 }

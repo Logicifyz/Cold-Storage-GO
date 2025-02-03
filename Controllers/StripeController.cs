@@ -1,9 +1,12 @@
 ﻿using Cold_Storage_GO.Models;
+using Cold_Storage_GO.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Stripe;
 using Stripe.Checkout;
+using Stripe.V2;
 using SubscriptionServiceApp = Cold_Storage_GO.Services.SubscriptionService;
 
 
@@ -17,6 +20,7 @@ namespace Cold_Storage_GO.Controllers
         private readonly IConfiguration _config;
         private readonly SubscriptionServiceApp _subscriptionService;
         private readonly ILogger<StripeController> _logger;  // ✅ Add the logger here
+        private readonly DbContexts _context;
 
         public StripeController(
         IConfiguration config,
@@ -59,7 +63,6 @@ namespace Cold_Storage_GO.Controllers
                 Metadata = new Dictionary<string, string>
         {
             { "userId", request.UserId.ToString() },
-            { "mealKitId", request.MealKitId.ToString() },
             { "frequency", request.Frequency.ToString() },
             { "deliveryTimeSlot", request.DeliveryTimeSlot },
             { "subscriptionType", request.SubscriptionType },
@@ -86,56 +89,54 @@ namespace Cold_Storage_GO.Controllers
                     _config["Stripe:WebhookSecret"]
                 );
 
-                _logger.LogInformation("✅ Event Constructed: {EventType}", stripeEvent.Type);
+                _logger.LogInformation("✅ Event Received: {EventType}", stripeEvent.Type);
 
                 if (stripeEvent.Type == "checkout.session.completed")
                 {
                     var session = stripeEvent.Data.Object as Stripe.Checkout.Session;
                     var metadata = session.Metadata;
 
-                    // ✅ Debugging the Received Metadata
-                    _logger.LogInformation("✅ Received Metadata: {Metadata}", metadata);
-
-                    if (metadata == null || !metadata.Any())
+                    if (metadata == null || !metadata.ContainsKey("userId"))
                     {
-                        _logger.LogError("❌ Metadata is empty. Verify Stripe setup.");
-                        return BadRequest("❌ Metadata was empty. Ensure you are passing it correctly.");
-                    }
-
-                    if (!metadata.ContainsKey("userId"))
-                    {
-                        _logger.LogError("❌ Missing userId in metadata.");
-                        return BadRequest("Missing userId in metadata.");
+                        _logger.LogError("❌ Metadata is missing required fields.");
+                        return BadRequest("Invalid metadata.");
                     }
 
                     var userId = Guid.Parse(metadata["userId"]);
-                    var mealKitId = Guid.Parse(metadata["mealKitId"]);
-                    var frequency = int.Parse(metadata["frequency"]);
-                    var deliveryTimeSlot = metadata["deliveryTimeSlot"];
-                    var subscriptionType = metadata["subscriptionType"];
-                    var subscriptionChoice = metadata["subscriptionChoice"];
-                    var price = Convert.ToDecimal(metadata["price"]);
 
-                    await _subscriptionService.CreateSubscriptionAsync(
-                        userId, mealKitId, frequency, deliveryTimeSlot, subscriptionType, subscriptionChoice, price
-                    );
+                    try
+                    {
+                        await _subscriptionService.CreateSubscriptionAsync(
+                            userId,
+                            int.Parse(metadata["frequency"]),
+                            metadata["deliveryTimeSlot"],
+                            metadata["subscriptionType"],
+                            metadata["subscriptionChoice"],
+                            Convert.ToDecimal(metadata["price"])
+                        );
 
-                    _logger.LogInformation("✅ Subscription successfully created.");
+                        _logger.LogInformation($"✅ Subscription successfully created for user {userId}.");
+                        return Ok();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"❌ Error creating subscription: {ex.Message}");
+                        return BadRequest(new { error = ex.Message });
+                    }
                 }
 
                 return Ok();
             }
-            catch (StripeException ex)
-            {
-                _logger.LogError("❌ Stripe Exception: {Message}", ex.Message);
-                return BadRequest(new { error = ex.Message });
-            }
             catch (Exception ex)
             {
-                _logger.LogError("❌ General Exception: {Message}", ex.Message);
+                _logger.LogError($"❌ General Exception: {ex.Message}");
                 return BadRequest(new { error = ex.Message });
             }
         }
+
+
+
+
 
     }
 

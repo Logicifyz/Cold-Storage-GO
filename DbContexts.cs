@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Cold_Storage_GO.Models;
 
 namespace Cold_Storage_GO
@@ -82,6 +82,27 @@ namespace Cold_Storage_GO
                 .WithMany(c => c.Replies)
                 .HasForeignKey(c => c.ParentCommentId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // ✅ One-to-One Relationship with Proper Null Handling
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.Subscriptions) // ✅ Change to One-to-Many
+                .WithOne(s => s.User)
+                .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // ✅ Set default values and constraints
+            modelBuilder.Entity<Subscription>()
+                .Property(s => s.IsFrozen)
+                .HasDefaultValue(false)
+                .ValueGeneratedNever(); // ✅ Prevents overriding default
+
+            modelBuilder.Entity<Subscription>()
+                .Property(s => s.AutoRenewal)
+                .HasDefaultValue(false)
+                .ValueGeneratedNever();
+
+            modelBuilder.Entity<Subscription>()
+                .HasIndex(s => s.Status);
 
         }
     }

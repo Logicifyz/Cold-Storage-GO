@@ -39,12 +39,12 @@ namespace Cold_Storage_GO.Controllers
         {
             await _subscriptionService.CreateSubscriptionAsync(
                 request.UserId,
-                request.MealKitId,
                 request.Frequency,
                 request.DeliveryTimeSlot,
                 request.SubscriptionType,
                 request.SubscriptionChoice, // New field added here
                 request.Price
+
             );
             return Ok("Subscription created successfully");
         }
@@ -91,6 +91,7 @@ namespace Cold_Storage_GO.Controllers
             }
         }
 
+        // ✅ Cancel a Subscription without deleting the record (Status Change Only)
         [HttpDelete("cancel/{subscriptionId}")]
         public async Task<IActionResult> CancelSubscription(Guid subscriptionId)
         {
@@ -102,7 +103,10 @@ namespace Cold_Storage_GO.Controllers
                     return NotFound("Subscription not found.");
                 }
 
-                await _subscriptionService.CancelSubscriptionAsync(subscriptionId);
+                // ✅ Update status to canceled instead of deleting
+                subscription.Status = "Canceled";
+                await _subscriptionService.UpdateSubscriptionAsync(subscription);
+
                 return Ok("Subscription has been successfully canceled.");
             }
             catch (Exception ex)
@@ -110,6 +114,7 @@ namespace Cold_Storage_GO.Controllers
                 return BadRequest($"Error canceling subscription: {ex.Message}");
             }
         }
+
 
         // ✅ New: Get Subscriptions by SubscriptionChoice
         [HttpGet("choice/{subscriptionChoice}")]
@@ -156,6 +161,95 @@ namespace Cold_Storage_GO.Controllers
             await _subscriptionService.UpdateSubscriptionStatusAsync(subscriptionId, request);
             return Ok("Subscription updated successfully");
         }
+        // ✅ Fetch the latest subscription for the current user
+        [HttpGet("latest")]
+        public async Task<IActionResult> GetLatestSubscription()
+        {
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                return Unauthorized("Session ID is missing.");
+            }
+
+            var session = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+            if (session == null)
+            {
+                return Unauthorized("Invalid or expired session.");
+            }
+
+            var subscription = await _context.Subscriptions
+                .Where(s => s.UserId == session.UserId && s.Status == "Active")
+                .OrderByDescending(s => s.StartDate)
+                .FirstOrDefaultAsync();
+
+            if (subscription == null)
+                return NotFound("No active subscriptions found.");
+
+            return Ok(new
+            {
+                subscription.SubscriptionId,
+                subscription.SubscriptionType,
+                subscription.SubscriptionChoice
+            });
+        }
+        [HttpGet("active/{userId}")]
+        public async Task<IActionResult> UserHasActiveSubscription(Guid userId)
+        {
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                return Unauthorized("Session ID missing. Please log in again.");
+            }
+
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId);
+
+            if (userSession == null)
+            {
+                return Unauthorized("Invalid session. Please log in again.");
+            }
+
+            // ✅ Checking Active Status More Explicitly
+            var hasActiveSubscription = await _context.Subscriptions
+                .AnyAsync(s => s.UserId == userSession.UserId && s.Status == "Active");
+
+            return Ok(new { hasActiveSubscription });
+        }
+
+
+        [HttpGet("history")]
+        public async Task<IActionResult> GetSubscriptionHistory()
+        {
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                return Unauthorized("Session ID missing. Please log in again.");
+            }
+
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId);
+
+            if (userSession == null)
+            {
+                return Unauthorized("Invalid session. Please log in again.");
+            }
+
+            // ✅ Fetch all expired and canceled subscriptions for the user
+            var subscriptions = await _context.Subscriptions
+                .Where(s => s.UserId == userSession.UserId && s.Status != "Active")
+                .OrderByDescending(s => s.EndDate)
+                .ToListAsync();
+
+            if (!subscriptions.Any())
+            {
+                return NotFound("No subscription history found.");
+            }
+
+            return Ok(subscriptions);
+        }
+
 
     }
 }

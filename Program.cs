@@ -12,7 +12,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:3002") // Allow React app
+        policy.WithOrigins("http://localhost:3000") // Allow React app
               .AllowAnyHeader()                   // Allow any headers
               .AllowAnyMethod()                   // Allow any HTTP methods
               .AllowCredentials();                // Allow cookies/credentials
@@ -30,6 +30,7 @@ builder.Services.AddDbContext<DbContexts>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<DeliveryService>();
 builder.Services.AddSingleton<EmailService>();
+builder.Services.AddScoped<SubscriptionService>();
 builder.Logging.AddConsole();
 
 // Swagger configuration with security definition for session tokens

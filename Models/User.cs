@@ -19,6 +19,8 @@ namespace Cold_Storage_GO.Models
         public UserAdministration UserAdministration { get; set; }
         public ICollection<Follows> Followers { get; set; } // Users following this user
         public ICollection<Follows> Following { get; set; } // Users this user is following
+        public ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>(); // ✅ Fix for multiple subscriptions
+
 
     }
 }

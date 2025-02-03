@@ -7,11 +7,10 @@ namespace Cold_Storage_GO.Models
     {
         [Key]
         public int ProfileId { get; set; } // Auto-incrementing primary key
-        [Required]
-        public string FullName { get; set; }
-        public string PhoneNumber { get; set; }
-        public string StreetAddress { get; set; }
-        public string PostalCode { get; set; }
+        public string? FullName { get; set; }
+        public string? PhoneNumber { get; set; }
+        public string? StreetAddress { get; set; }
+        public string? PostalCode { get; set; }
 
         // Foreign key linking to User
         public Guid UserId { get; set; }
