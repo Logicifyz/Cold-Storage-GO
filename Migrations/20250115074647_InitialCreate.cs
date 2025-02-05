@@ -21,7 +21,7 @@ namespace Cold_Storage_GO.Migrations
                 {
                     ChatId = table.Column<Guid>(type: "char(36)", nullable: false),
                     UserId = table.Column<Guid>(type: "char(36)", nullable: false),
-                    Message = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: false),
+                    Message = table.Column<string>(type: "longtext", nullable: false),
                     Timestamp = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                 },
                 constraints: table =>

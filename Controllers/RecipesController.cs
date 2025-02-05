@@ -55,52 +55,76 @@ namespace Cold_Storage_GO.Controllers
 
         // 3. Create a Recipe
         [HttpPost]
-        public async Task<IActionResult> CreateRecipe([FromForm] Recipe recipe, [FromForm] List<IFormFile> mediaFiles)
+        public async Task<IActionResult> CreateRecipe([FromBody] Recipe recipe)
         {
-            recipe.RecipeId = Guid.NewGuid();
-
-            // Process media files
-            var mediaFolder = Path.Combine(Directory.GetCurrentDirectory(), "MediaFiles");
-            if (!Directory.Exists(mediaFolder))
+            try
             {
-                Directory.CreateDirectory(mediaFolder);
-            }
+                recipe.RecipeId = Guid.NewGuid();
 
-            var mediaUrls = new List<string>();
-            foreach (var file in mediaFiles)
-            {
-                if (file.Length > 0)
+                // Log received recipe data
+                Console.WriteLine("Received Recipe Data:");
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(recipe));
+
+                // Defensive null checks for Ingredients and Instructions
+                recipe.Ingredients ??= new List<Ingredient>();
+                recipe.Instructions ??= new List<Instruction>();
+
+                Console.WriteLine("Ingredients:");
+                foreach (var ingredient in recipe.Ingredients)
                 {
-                    var fileName = $"{Guid.NewGuid()}_{file.FileName}";
-                    var filePath = Path.Combine(mediaFolder, fileName);
-                    using (var stream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await file.CopyToAsync(stream);
-                    }
-                    mediaUrls.Add(Path.Combine("MediaFiles", fileName));
+                    Console.WriteLine($"Name: {ingredient.Name}, Quantity: {ingredient.Quantity}, Unit: {ingredient.Unit}");
                 }
+
+                Console.WriteLine("Instructions:");
+                foreach (var instruction in recipe.Instructions)
+                {
+                    Console.WriteLine($"StepNumber: {instruction.StepNumber}, Step: {instruction.Step}");
+                }
+
+                // Save nested entities
+                foreach (var ingredient in recipe.Ingredients)
+                {
+                    ingredient.IngredientId = Guid.NewGuid();
+                    ingredient.RecipeId = recipe.RecipeId;
+                }
+
+                foreach (var instruction in recipe.Instructions)
+                {
+                    instruction.InstructionId = Guid.NewGuid();
+                    instruction.RecipeId = recipe.RecipeId;
+                }
+
+                recipe.MediaUrls = recipe.MediaUrls.Select(url =>
+                    url.StartsWith("MediaFiles/") ? url : $"MediaFiles/{url}"
+                ).ToList();
+
+                _context.Recipes.Add(recipe);
+
+                // Log database operations before saving
+                Console.WriteLine("Saving Recipe to Database...");
+                Console.WriteLine("Ingredients to Save:");
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(recipe.Ingredients));
+                Console.WriteLine("Instructions to Save:");
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(recipe.Instructions));
+
+                await _context.SaveChangesAsync();
+
+                Console.WriteLine("Recipe saved successfully.");
+
+                return CreatedAtAction(nameof(GetRecipe), new { id = recipe.RecipeId }, recipe);
             }
-
-            recipe.MediaUrls = mediaUrls;
-
-            // Save nested entities
-            foreach (var ingredient in recipe.Ingredients)
+            catch (Exception ex)
             {
-                ingredient.IngredientId = Guid.NewGuid();
-                ingredient.RecipeId = recipe.RecipeId;
+                // Log the error
+                Console.WriteLine("An error occurred while creating the recipe:");
+                Console.WriteLine(ex.Message);
+                Console.WriteLine(ex.StackTrace);
+
+                return StatusCode(500, "An error occurred while creating the recipe. Check server logs for details.");
             }
-
-            foreach (var instruction in recipe.Instructions)
-            {
-                instruction.InstructionId = Guid.NewGuid();
-                instruction.RecipeId = recipe.RecipeId;
-            }
-
-            _context.Recipes.Add(recipe);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetRecipe), new { id = recipe.RecipeId }, recipe);
         }
+
+
 
         // 4. Update a Recipe
         [HttpPut("{id}")]
@@ -167,7 +191,7 @@ namespace Cold_Storage_GO.Controllers
 
             return NoContent();
         }
-         
+
         // 5. Delete a Recipe
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRecipe(Guid id)

@@ -8,6 +8,11 @@ using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ✅ Add logging configuration
+builder.Logging.ClearProviders(); // Clear default providers
+builder.Logging.AddConsole();    // Add console logging
+builder.Logging.AddDebug();      // Add debug logging for development
+
 // Add services to the container
 builder.Services.AddCors(options =>
 {
@@ -19,6 +24,8 @@ builder.Services.AddCors(options =>
               .AllowCredentials();
     });
 });
+
+builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true); // Load OpenAI key
 
 // ✅ Register Controllers explicitly
 // Add services to the container.
@@ -83,6 +90,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// ✅ Add logging for the startup phase
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+logger.LogInformation("Application is starting...");
+
 app.UseHttpsRedirection();
 
 // Serve static files from the "MediaFiles" folder
@@ -93,10 +104,11 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath = "/MediaFiles"
 });
 
-
 app.UseCors("AllowReactApp"); // CORS middleware must come before Authorization
 app.UseAuthentication();      // Add this if you are using authentication
 app.UseAuthorization();
 app.UseMiddleware<SessionMiddleware>();
 app.MapControllers();
+
+logger.LogInformation("Application configuration completed. Ready to handle requests.");
 app.Run();

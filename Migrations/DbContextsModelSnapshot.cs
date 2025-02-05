@@ -27,8 +27,7 @@ namespace Cold_Storage_GO.Migrations
 
                     b.Property<string>("Message")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
+                        .HasColumnType("longtext");
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime(6)");
