@@ -5,6 +5,7 @@ using Google.Apis.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MySqlX.XDevAPI;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
@@ -19,13 +20,15 @@ public class AuthController : ControllerBase
     private readonly EmailService _emailService;
     private readonly GoogleAuthService _googleAuthService;
     private readonly string _clientId = "869557804479-pv18rpo94fbpd6hatmns6m4nes5adih8.apps.googleusercontent.com";  // Replace with your actual Google client ID
+    private readonly ILogger<AuthController> _logger;
 
 
-    public AuthController(DbContexts context, EmailService emailService, GoogleAuthService googleAuthService)
+    public AuthController(DbContexts context, EmailService emailService, GoogleAuthService googleAuthService, ILogger<AuthController> logger)
     {
         _context = context;
         _emailService = emailService;
         _googleAuthService = googleAuthService;
+        _logger = logger;
 
     }
 
@@ -398,60 +401,82 @@ public class AuthController : ControllerBase
     [HttpPost("staff/login")]
     public async Task<IActionResult> StaffLogin([FromBody] LoginRequest request)
     {
+        // Find staff member by email
         var staff = await _context.Staff
             .FirstOrDefaultAsync(s => s.Email == request.Email);
 
-        if (staff == null || staff.Role != "staff" || staff.Password != request.Password)
+        if (staff == null)
         {
-            return Unauthorized("Invalid email, password, or role.");
+            return Unauthorized("Staff not found.");
+        }
+
+        // Check if the staff member has the correct role
+        if (staff.Role != "staff")
+        {
+            return Unauthorized("Invalid role.");
+        }
+
+        // Verify the password
+        if (!BCrypt.Net.BCrypt.Verify(request.Password, staff.Password))
+        {
+            return Unauthorized("Invalid password.");
         }
 
         // Check for an existing active session for the staff member
         var existingSession = await _context.StaffSessions
             .FirstOrDefaultAsync(s => s.StaffId == staff.StaffId && s.IsActive);
 
+        string sessionId;
+
         if (existingSession != null)
         {
+            // Log the existing session details
+            _logger.LogInformation("Existing session found for StaffId: {StaffId}, SessionId: {SessionId}. Updating LastAccessed.", staff.StaffId, existingSession.StaffSessionId);
+
             // Update LastAccessed for the existing session
             existingSession.LastAccessed = DateTime.UtcNow;
             _context.StaffSessions.Update(existingSession);
             await _context.SaveChangesAsync();
 
-            // Return the existing session details
-            return Ok(new
+            // Use the existing session ID
+            sessionId = existingSession.StaffSessionId;
+        }
+        else
+        {
+            // Create a new session if none exists
+            sessionId = Guid.NewGuid().ToString();
+            var staffSession = new StaffSession
             {
-                SessionId = existingSession.StaffSessionId,
+                StaffSessionId = sessionId,
                 StaffId = staff.StaffId,
-                Name = staff.Name,
-                Email = staff.Email,
-                Role = staff.Role
-            });
+                CreatedAt = DateTime.UtcNow,
+                LastAccessed = DateTime.UtcNow,
+                Data = "{}",
+                IsActive = true
+            };
+
+            // Log the new session creation
+            _logger.LogInformation("Creating a new session for StaffId: {StaffId}, SessionId: {SessionId}.", staff.StaffId, sessionId);
+
+            _context.StaffSessions.Add(staffSession);
+            await _context.SaveChangesAsync();
         }
 
-        // If no active session exists, create a new one
-        var staffSession = new StaffSession
-        {
-            StaffSessionId = Guid.NewGuid().ToString(),
-            StaffId = staff.StaffId,
-            CreatedAt = DateTime.UtcNow,
-            LastAccessed = DateTime.UtcNow,
-            Data = "{}",
-            IsActive = true
-        };
+        // Set the session ID in a cookie
+        CookieService.SetCookie(HttpContext, "SessionId", sessionId);
+        _logger.LogInformation("SessionId {SessionId} set in the cookie for StaffId: {StaffId}.", sessionId, staff.StaffId);
 
-        _context.StaffSessions.Add(staffSession);
-        await _context.SaveChangesAsync();
-
-        // Return a response with the new session and staff info
+        // Return a response with the session and staff info
         return Ok(new
         {
-            SessionId = staffSession.StaffSessionId,
+            SessionId = sessionId,
             StaffId = staff.StaffId,
             Name = staff.Name,
             Email = staff.Email,
             Role = staff.Role
         });
     }
+
 
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
@@ -661,7 +686,7 @@ public class AuthController : ControllerBase
 
 
 
-
+    [HttpPost("verify-google-token")]
     public async Task<GoogleJsonWebSignature.Payload> VerifyGoogleTokenAsync(string idToken)
     {
         try

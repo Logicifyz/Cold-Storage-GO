@@ -29,6 +29,7 @@ namespace Cold_Storage_GO
         public DbSet<Follows> Follows { get; set; }
         public DbSet<Staff> Staff { get; set; }
         public DbSet<SupportTicket> SupportTickets { get; set; }
+        public DbSet<TicketImage> TicketImage { get; set; }
         public DbSet<StaffSession> StaffSessions { get; set; }
         public DbSet<Article> Articles { get; set; }
   

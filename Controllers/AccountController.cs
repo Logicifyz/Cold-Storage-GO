@@ -160,7 +160,7 @@ namespace Cold_Storage_GO.Controllers
 
 
         [HttpPut("update-profile")]
-        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+        public async Task<IActionResult> UpdateProfile([FromForm] UpdateProfileRequest request)
         {
             _logger.LogDebug("Received request to update profile.");
 
@@ -203,7 +203,6 @@ namespace Cold_Storage_GO.Controllers
                 }
                 _logger.LogDebug($"User details found for user {user.Username}.");
 
-                // Check if the username is already taken, unless the provided username is the same as the current one
                 if (!string.IsNullOrWhiteSpace(request.Username) && request.Username != user.Username)
                 {
                     _logger.LogDebug($"Checking if username {request.Username} is taken.");
@@ -215,8 +214,7 @@ namespace Cold_Storage_GO.Controllers
                     }
                 }
 
-                // Check if the provided email is different from the current user's email, 
-                // and if it is, check if it is already taken.
+                
                 if (!string.IsNullOrWhiteSpace(request.Email) && request.Email != user.Email)
                 {
                     _logger.LogDebug($"Checking if email {request.Email} is taken.");
@@ -228,7 +226,6 @@ namespace Cold_Storage_GO.Controllers
                     }
                 }
 
-                // Update the profile with the provided details
                 if (!string.IsNullOrWhiteSpace(request.FullName))
                 {
                     _logger.LogDebug($"Updating full name to {request.FullName}.");
@@ -245,12 +242,32 @@ namespace Cold_Storage_GO.Controllers
                 if (request.ProfilePicture != null)
                 {
                     _logger.LogDebug("Uploading new profile picture.");
+
+                    // Check if the file size exceeds the limit (e.g., 2MB)
+                    const long maxSizeInBytes = 2 * 1024 * 1024; // 2 MB
+                    if (request.ProfilePicture.Length > maxSizeInBytes)
+                    {
+                        _logger.LogDebug("File size exceeds the maximum allowed size.");
+                        return BadRequest(new { Message = "Profile picture is too large. Maximum size is 2MB." });
+                    }
+
+                    // Check if the file type is allowed (e.g., JPG, PNG)
+                    var allowedExtensions = new[] { ".jpg", ".jpeg", ".png" };
+                    var fileExtension = Path.GetExtension(request.ProfilePicture.FileName).ToLower();
+                    if (!allowedExtensions.Contains(fileExtension))
+                    {
+                        _logger.LogDebug("Invalid file type.");
+                        return BadRequest(new { Message = "Invalid file type. Only JPG and PNG images are allowed." });
+                    }
+
+                    // Store the image as a byte array (if size and type are valid)
                     using (var memoryStream = new MemoryStream())
                     {
                         await request.ProfilePicture.CopyToAsync(memoryStream);
                         userProfile.ProfilePicture = memoryStream.ToArray();  // Store as a byte array
                     }
                 }
+
 
                 // Update username and email if they are provided and not already taken
                 if (!string.IsNullOrWhiteSpace(request.Username))
@@ -288,7 +305,10 @@ namespace Cold_Storage_GO.Controllers
 
         [HttpGet("profile")]
         public async Task<IActionResult> GetProfile()
+
+
         {
+            
             // Get the currently authenticated user based on the session
             var sessionId = HttpContext.Request.Cookies["SessionId"];
 
@@ -334,7 +354,7 @@ namespace Cold_Storage_GO.Controllers
                 StreetAddress = userProfile.StreetAddress,
                 PostalCode = userProfile.PostalCode,
                 ProfilePicture = userProfile.ProfilePicture,
-                Verified = user.UserAdministration.Verified  // Add the verified status from the UserAdministration
+                Verified = user.UserAdministration.Verified,
             };
             return Ok(profileResponse);
         }
@@ -556,19 +576,11 @@ namespace Cold_Storage_GO.Controllers
         // Request model for updating the profile
         public class UpdateProfileRequest
         {
-            public string? FullName { get; set; }
-            public string? PhoneNumber { get; set; }
-
-            // Optional profile picture
-            public IFormFile? ProfilePicture { get; set; }
-
-            [Required(ErrorMessage = "Email is required.")]
-            [EmailAddress(ErrorMessage = "Invalid email format.")]
             public string Email { get; set; }
-
-            [Required(ErrorMessage = "Username is required.")]
-            [StringLength(50, ErrorMessage = "Username can't be longer than 50 characters.")]
             public string Username { get; set; }
+            public string PhoneNumber { get; set; }
+            public string FullName { get; set; }
+            public IFormFile? ProfilePicture { get; set; } // Use IFormFile for file uploads
         }
 
         // Request Model for Follow/Unfollow
@@ -576,6 +588,13 @@ namespace Cold_Storage_GO.Controllers
         {
             [Required(ErrorMessage = "Username is required.")]
             public string Username { get; set; }
+        }
+        public static class PasswordHelper
+        {
+            public static string HashPassword(string password)
+            {
+                return BCrypt.Net.BCrypt.HashPassword(password);
+            }
         }
     }
 }
