@@ -41,8 +41,9 @@ namespace Cold_Storage_GO
         public DbSet<Comment> Comments { get; set; }
         public DbSet<Discussion> Discussions { get; set; }
         public DbSet<Recipe> Recipes { get; set; }
-        public DbSet<Ingredient> Ingredients { get; set; }
-        public DbSet<Instruction> Instructions { get; set; }
+        public DbSet<RecipeIngredient> RecipeIngredients { get; set; }
+        public DbSet<RecipeInstruction> RecipeInstructions { get; set; }
+        public DbSet<RecipeImage> RecipeImage { get; set; }
         public DbSet<AIResponseLog> AIResponseLogs { get; set; }
         public DbSet<UserRecipeRequest> UserRecipeRequests { get; set; }
         public DbSet<AIRecipeRequest> AIRecipeRequests { get; set; }
@@ -86,27 +87,24 @@ namespace Cold_Storage_GO
                 .HasForeignKey(c => c.ParentCommentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Configure Recipe MediaUrls as JSON
             modelBuilder.Entity<Recipe>()
-                .Property(r => r.MediaUrls)
-                .HasConversion(
-                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
-                    v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions)null)
-                );
-
-            // Ingredients relationship
-            modelBuilder.Entity<Ingredient>()
-                .HasOne<Recipe>()
-                .WithMany(r => r.Ingredients)
+                .HasMany(r => r.Ingredients)
+                .WithOne(i => i.Recipe)
                 .HasForeignKey(i => i.RecipeId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Instructions relationship
-            modelBuilder.Entity<Instruction>()
-                .HasOne<Recipe>()
-                .WithMany(r => r.Instructions)
+            modelBuilder.Entity<Recipe>()
+                .HasMany(r => r.Instructions)
+                .WithOne(instr => instr.Recipe)
                 .HasForeignKey(instr => instr.RecipeId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Recipe>()
+                .HasMany(r => r.CoverImages)
+                .WithOne(img => img.Recipe)
+                .HasForeignKey(img => img.RecipeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
 
             // AI DB CONFIG
             // ?? Mark UserRecipeRequest as Keyless (Not stored in DB)

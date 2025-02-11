@@ -19,157 +19,263 @@ namespace Cold_Storage_GO.Controllers
 
         // 1. Get All Recipes (Search and Filter)
         [HttpGet]
-        public async Task<IActionResult> GetRecipes([FromQuery] string? tags, [FromQuery] string? visibility)
+        public async Task<IActionResult> GetRecipes()
         {
-            var query = _context.Recipes
-                .Include(r => r.Ingredients)
-                .Include(r => r.Instructions)
-                .AsQueryable();
+            var recipes = await _context.Recipes
+                .Include(r => r.CoverImages)
+                .ToListAsync();
 
-            if (!string.IsNullOrEmpty(tags))
+            Console.WriteLine($"Returning {recipes.Count} recipes...");
+
+            var formattedRecipes = recipes.Select(recipe => new
             {
-                query = query.Where(r => r.Tags.Contains(tags));
-            }
+                RecipeId = recipe.RecipeId,
+                UserId = recipe.UserId,
+                DishId = recipe.DishId,
+                Name = recipe.Name,
+                Description = recipe.Description,
+                TimeTaken = recipe.TimeTaken,
+                Tags = recipe.Tags,
+                Visibility = recipe.Visibility,
+                Upvotes = recipe.Upvotes,
+                Downvotes = recipe.Downvotes,
+                CoverImages = recipe.CoverImages != null && recipe.CoverImages.Any()
+                    ? recipe.CoverImages.Select(img => Convert.ToBase64String(img.ImageData)).ToList()
+                    : new List<string>(), // Ensure an empty array if no images exist
+                Ingredients = recipe.Ingredients,
+                Instructions = recipe.Instructions
+            }).ToList();
 
-            if (!string.IsNullOrEmpty(visibility))
-            {
-                query = query.Where(r => r.Visibility == visibility);
-            }
-
-            return Ok(await query.ToListAsync());
+            return Ok(formattedRecipes);
         }
 
-        // 2. Get a Recipe by ID
+
+
+
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetRecipe(Guid id)
         {
+            Console.WriteLine($"Fetching recipe with ID: {id}");
+            if (id == Guid.Empty)
+            {
+                return BadRequest("Recipe ID is missing.");
+            }
+
             var recipe = await _context.Recipes
+                .Include(r => r.CoverImages)
                 .Include(r => r.Ingredients)
                 .Include(r => r.Instructions)
                 .FirstOrDefaultAsync(r => r.RecipeId == id);
 
-            if (recipe == null) return NotFound("Recipe not found.");
+            if (recipe == null)
+            {
+                return NotFound("Recipe not found.");
+            }
 
-            return Ok(recipe);
+            var formattedRecipe = new
+            {
+                RecipeId = recipe.RecipeId,
+                Name = recipe.Name,
+                Description = recipe.Description,
+                TimeTaken = recipe.TimeTaken,
+                Tags = !string.IsNullOrEmpty(recipe.Tags) ? recipe.Tags : "No tags provided",
+                Visibility = recipe.Visibility,
+                Upvotes = recipe.Upvotes,
+                Downvotes = recipe.Downvotes,
+                CoverImages = recipe.CoverImages?.Select(img => Convert.ToBase64String(img.ImageData)).ToList() ?? new List<string>(),
+
+                // 🔥 Fix: Ensure type consistency for Ingredients
+                Ingredients = recipe.Ingredients != null && recipe.Ingredients.Any()
+                    ? recipe.Ingredients.Select(i => new
+                    {
+                        Quantity = i.Quantity,
+                        Unit = i.Unit,
+                        Name = i.Name
+                    }).Cast<object>().ToList() // Ensures both cases return List<object>
+                    : new List<object>(),
+
+                // 🔥 Fix: Ensure type consistency for Instructions
+                Instructions = recipe.Instructions != null && recipe.Instructions.Any()
+                    ? recipe.Instructions.Select(instr => new
+                    {
+                        StepNumber = instr.StepNumber,
+                        Step = instr.Step
+                    }).Cast<object>().ToList() // Ensures both cases return List<object>
+                    : new List<object>()
+            };
+
+            return Ok(formattedRecipe);
         }
+
+
+
+
+
+
+
+
+
 
         // 3. Create a Recipe
         [HttpPost]
-        public async Task<IActionResult> CreateRecipe([FromBody] Recipe recipe)
+        public async Task<IActionResult> CreateRecipe(
+        [FromForm] Recipe recipe,
+        [FromForm] List<IFormFile>? coverImages,
+        [FromForm] List<IFormFile>? instructionImages,
+        [FromForm] string? ingredients,
+        [FromForm] string? instructions)
         {
             try
             {
                 recipe.RecipeId = Guid.NewGuid();
+                Console.WriteLine($"✅ Received Recipe Data: {System.Text.Json.JsonSerializer.Serialize(recipe)}");
 
-                // Log received recipe data
-                Console.WriteLine("Received Recipe Data:");
-                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(recipe));
+                // ✅ Initialize Lists to Avoid Null Reference Issues
+                recipe.Ingredients = new List<RecipeIngredient>();
+                recipe.Instructions = new List<RecipeInstruction>();
 
-                // Defensive null checks for Ingredients and Instructions
-                recipe.Ingredients ??= new List<Ingredient>();
-                recipe.Instructions ??= new List<Instruction>();
-
-                Console.WriteLine("Ingredients:");
-                foreach (var ingredient in recipe.Ingredients)
+                // ✅ Deserialize and Attach Ingredients
+                if (!string.IsNullOrEmpty(ingredients))
                 {
-                    Console.WriteLine($"Name: {ingredient.Name}, Quantity: {ingredient.Quantity}, Unit: {ingredient.Unit}");
+                    Console.WriteLine("🔹 Raw Ingredients JSON: " + ingredients);
+                    try
+                    {
+                        var deserializedIngredients = System.Text.Json.JsonSerializer.Deserialize<List<RecipeIngredient>>(ingredients);
+                        if (deserializedIngredients != null)
+                        {
+                            foreach (var ingredient in deserializedIngredients)
+                            {
+                                ingredient.IngredientId = Guid.NewGuid();
+                                ingredient.RecipeId = recipe.RecipeId;
+                            }
+                            _context.RecipeIngredients.AddRange(deserializedIngredients); // ✅ Explicitly Save
+                            Console.WriteLine("✅ Successfully saved ingredients");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("❌ Error deserializing ingredients: " + ex.Message);
+                    }
                 }
 
-                Console.WriteLine("Instructions:");
-                foreach (var instruction in recipe.Instructions)
+                // ✅ Deserialize and Attach Instructions
+                if (!string.IsNullOrEmpty(instructions))
                 {
-                    Console.WriteLine($"StepNumber: {instruction.StepNumber}, Step: {instruction.Step}");
+                    Console.WriteLine("🔹 Raw Instructions JSON: " + instructions);
+                    try
+                    {
+                        var deserializedInstructions = System.Text.Json.JsonSerializer.Deserialize<List<RecipeInstruction>>(instructions);
+                        if (deserializedInstructions != null)
+                        {
+                            for (int i = 0; i < deserializedInstructions.Count; i++)
+                            {
+                                deserializedInstructions[i].InstructionId = Guid.NewGuid();
+                                deserializedInstructions[i].RecipeId = recipe.RecipeId;
+                                deserializedInstructions[i].StepNumber = i + 1;
+
+                                // ✅ Attach Image if Exists
+                                if (instructionImages != null && i < instructionImages.Count)
+                                {
+                                    using (var ms = new MemoryStream())
+                                    {
+                                        await instructionImages[i].CopyToAsync(ms);
+                                        deserializedInstructions[i].StepImage = ms.ToArray(); // ✅ Convert to byte[]
+                                    }
+                                }
+                            }
+                            _context.RecipeInstructions.AddRange(deserializedInstructions); // ✅ Explicitly Save
+                            Console.WriteLine("✅ Successfully saved instructions");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("❌ Error deserializing instructions: " + ex.Message);
+                    }
                 }
 
-                // Save nested entities
-                foreach (var ingredient in recipe.Ingredients)
+                // ✅ Save Cover Images
+                recipe.CoverImages = new List<RecipeImage>();
+                if (coverImages != null)
                 {
-                    ingredient.IngredientId = Guid.NewGuid();
-                    ingredient.RecipeId = recipe.RecipeId;
+                    foreach (var image in coverImages)
+                    {
+                        using (var ms = new MemoryStream())
+                        {
+                            await image.CopyToAsync(ms);
+                            recipe.CoverImages.Add(new RecipeImage
+                            {
+                                ImageId = Guid.NewGuid(),
+                                ImageData = ms.ToArray(),
+                                RecipeId = recipe.RecipeId
+                            });
+                        }
+                    }
                 }
 
-                foreach (var instruction in recipe.Instructions)
-                {
-                    instruction.InstructionId = Guid.NewGuid();
-                    instruction.RecipeId = recipe.RecipeId;
-                }
-
-                recipe.MediaUrls = recipe.MediaUrls.Select(url =>
-                    url.StartsWith("MediaFiles/") ? url : $"MediaFiles/{url}"
-                ).ToList();
-
+                // ✅ Save Recipe First
                 _context.Recipes.Add(recipe);
-
-                // Log database operations before saving
-                Console.WriteLine("Saving Recipe to Database...");
-                Console.WriteLine("Ingredients to Save:");
-                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(recipe.Ingredients));
-                Console.WriteLine("Instructions to Save:");
-                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(recipe.Instructions));
-
                 await _context.SaveChangesAsync();
 
-                Console.WriteLine("Recipe saved successfully.");
-
+                Console.WriteLine("✅ Recipe successfully saved to database!");
                 return CreatedAtAction(nameof(GetRecipe), new { id = recipe.RecipeId }, recipe);
             }
             catch (Exception ex)
             {
-                // Log the error
-                Console.WriteLine("An error occurred while creating the recipe:");
+                Console.WriteLine("❌ Error saving recipe:");
                 Console.WriteLine(ex.Message);
-                Console.WriteLine(ex.StackTrace);
-
-                return StatusCode(500, "An error occurred while creating the recipe. Check server logs for details.");
+                return StatusCode(500, "An error occurred while creating the recipe.");
             }
         }
+
+
+
+
+
+
 
 
 
         // 4. Update a Recipe
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateRecipe(Guid id, [FromForm] Recipe updatedRecipe, [FromForm] List<IFormFile> mediaFiles)
+        public async Task<IActionResult> UpdateRecipe(Guid id, [FromForm] Recipe updatedRecipe, [FromForm] List<IFormFile>? coverImages, [FromForm] List<IFormFile>? instructionImages)
         {
             var recipe = await _context.Recipes
                 .Include(r => r.Ingredients)
                 .Include(r => r.Instructions)
+                .Include(r => r.CoverImages)
                 .FirstOrDefaultAsync(r => r.RecipeId == id);
 
             if (recipe == null) return NotFound("Recipe not found.");
 
-            // Update recipe properties
+            Console.WriteLine("Updating Recipe...");
             recipe.Name = updatedRecipe.Name;
             recipe.Description = updatedRecipe.Description;
             recipe.TimeTaken = updatedRecipe.TimeTaken;
             recipe.Tags = updatedRecipe.Tags;
             recipe.Visibility = updatedRecipe.Visibility;
 
-            // Update media files
-            var mediaFolder = Path.Combine(Directory.GetCurrentDirectory(), "MediaFiles");
-            if (!Directory.Exists(mediaFolder))
+            if (coverImages != null)
             {
-                Directory.CreateDirectory(mediaFolder);
-            }
+                _context.RemoveRange(recipe.CoverImages);
+                recipe.CoverImages.Clear();
 
-            var mediaUrls = new List<string>();
-            foreach (var file in mediaFiles)
-            {
-                if (file.Length > 0)
+                foreach (var image in coverImages)
                 {
-                    var fileName = $"{Guid.NewGuid()}_{file.FileName}";
-                    var filePath = Path.Combine(mediaFolder, fileName);
-                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    using (var ms = new MemoryStream())
                     {
-                        await file.CopyToAsync(stream);
+                        await image.CopyToAsync(ms);
+                        recipe.CoverImages.Add(new RecipeImage
+                        {
+                            ImageId = Guid.NewGuid(),
+                            ImageData = ms.ToArray(),
+                            RecipeId = recipe.RecipeId
+                        });
                     }
-                    mediaUrls.Add(Path.Combine("MediaFiles", fileName));
                 }
             }
 
-            recipe.MediaUrls.AddRange(mediaUrls);
-
-            // Update ingredients
-            _context.Ingredients.RemoveRange(recipe.Ingredients);
+            _context.RecipeIngredients.RemoveRange(recipe.Ingredients);
             foreach (var ingredient in updatedRecipe.Ingredients)
             {
                 ingredient.IngredientId = Guid.NewGuid();
@@ -177,18 +283,29 @@ namespace Cold_Storage_GO.Controllers
                 recipe.Ingredients.Add(ingredient);
             }
 
-            // Update instructions
-            _context.Instructions.RemoveRange(recipe.Instructions);
-            foreach (var instruction in updatedRecipe.Instructions)
+            _context.RecipeInstructions.RemoveRange(recipe.Instructions);
+            for (int i = 0; i < updatedRecipe.Instructions.Count; i++)
             {
+                var instruction = updatedRecipe.Instructions[i];
                 instruction.InstructionId = Guid.NewGuid();
                 instruction.RecipeId = recipe.RecipeId;
+
+                if (instructionImages != null && i < instructionImages.Count)
+                {
+                    using (var ms = new MemoryStream())
+                    {
+                        await instructionImages[i].CopyToAsync(ms);
+                        instruction.StepImage = ms.ToArray();
+                    }
+                }
+
                 recipe.Instructions.Add(instruction);
             }
 
             _context.Recipes.Update(recipe);
             await _context.SaveChangesAsync();
 
+            Console.WriteLine("Recipe updated successfully.");
             return NoContent();
         }
 
@@ -199,6 +316,7 @@ namespace Cold_Storage_GO.Controllers
             var recipe = await _context.Recipes
                 .Include(r => r.Ingredients)
                 .Include(r => r.Instructions)
+                .Include(r => r.CoverImages)
                 .FirstOrDefaultAsync(r => r.RecipeId == id);
 
             if (recipe == null) return NotFound("Recipe not found.");
@@ -206,6 +324,7 @@ namespace Cold_Storage_GO.Controllers
             _context.Recipes.Remove(recipe);
             await _context.SaveChangesAsync();
 
+            Console.WriteLine("Recipe deleted successfully.");
             return NoContent();
         }
     }

@@ -29,7 +29,13 @@ builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnC
 
 // ✅ Register Controllers explicitly
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.PropertyNamingPolicy = null; // Ensure normal naming
+    });
+
 
 // ✅ Register DbContext for MySQL (Ensure Proper Setup)
 builder.Services.AddDbContext<DbContexts>();

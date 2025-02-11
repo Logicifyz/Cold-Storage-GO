@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Cold_Storage_GO.Models
 {
@@ -24,14 +25,11 @@ namespace Cold_Storage_GO.Models
         [Range(1, 1440)]
         public int TimeTaken { get; set; }
 
-        public List<Ingredient> Ingredients { get; set; } = new List<Ingredient>();
-
-        public List<Instruction> Instructions { get; set; } = new List<Instruction>();
+        public List<RecipeIngredient> Ingredients { get; set; } = new List<RecipeIngredient>();
+        public List<RecipeInstruction> Instructions { get; set; } = new List<RecipeInstruction>();
 
         [MaxLength(200)]
         public string Tags { get; set; } = string.Empty;
-
-        public List<string> MediaUrls { get; set; } = new List<string>();
 
         [Required]
         [RegularExpression("^(public|private|friends-only)$", ErrorMessage = "Visibility must be 'public', 'private', or 'friends-only'")]
@@ -42,5 +40,9 @@ namespace Cold_Storage_GO.Models
 
         [Range(0, int.MaxValue)]
         public int Downvotes { get; set; }
+
+        [JsonIgnore] // Prevent serialization issues
+        public List<RecipeImage> CoverImages { get; set; } = new List<RecipeImage>();
+
     }
 }
