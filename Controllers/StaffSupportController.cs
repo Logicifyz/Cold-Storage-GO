@@ -3,11 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Cold_Storage_GO.Models;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 
 namespace Cold_Storage_GO.Controllers
 {
-    [AllowAnonymous]
     [ApiController]
     [Route("api/[controller]")]
     public class StaffSupportController : ControllerBase
@@ -19,31 +17,53 @@ namespace Cold_Storage_GO.Controllers
             _context = context;
         }
 
-        // Get all tickets with filters
-        [HttpGet("tickets")]
-        public async Task<IActionResult> GetAllTickets(
-            [FromQuery] string status = null,
-            [FromQuery] string priority = null,
-            [FromQuery] string assignedTo = null,
-            [FromQuery] string category = null,
-            [FromQuery] string subject = null,
-            [FromQuery] Guid? ticketId = null) // Added ticketId filter
+        // Consolidated method to validate staff session and role
+        private async Task<IActionResult> ValidateStaffSession(string sessionId)
         {
-            // Get the session ID from the cookies
-            var sessionId = Request.Cookies["SessionId"];
-
             if (string.IsNullOrEmpty(sessionId))
             {
                 return Unauthorized("Session ID is required.");
             }
 
-            // Optional: If you still want to validate session, you can use the sessionId here
+            // Find the active staff session
             var staffSession = await _context.StaffSessions
                 .FirstOrDefaultAsync(ss => ss.StaffSessionId == sessionId && ss.IsActive);
 
             if (staffSession == null)
             {
                 return Unauthorized("Invalid or inactive staff session.");
+            }
+
+            // Ensure that the associated user has the 'staff' role
+            var staff = await _context.Staff
+                .FirstOrDefaultAsync(u => u.StaffId == staffSession.StaffId && u.Role == "staff");
+
+            if (staff == null)
+            {
+                return Unauthorized("User is not a staff member.");
+            }
+
+            return null; // Valid session and role
+        }
+
+        // Get all tickets with filters
+        [HttpGet("tickets")]
+        public async Task<IActionResult> GetAllTickets(
+    [FromQuery] string status = null,
+    [FromQuery] string priority = null,
+    [FromQuery] string assignedTo = null,
+    [FromQuery] string category = null,
+    [FromQuery] string subject = null,
+    [FromQuery] Guid? ticketId = null)  // Added ticketId filter
+        {
+            // Get the session ID from the request header
+            var sessionId = Request.Headers["SessionId"].ToString();
+
+            // Validate the staff session and role
+            var validationResponse = await ValidateStaffSession(sessionId);
+            if (validationResponse != null)
+            {
+                return validationResponse;
             }
 
             var query = _context.SupportTickets.AsQueryable();
@@ -84,28 +104,22 @@ namespace Cold_Storage_GO.Controllers
             return Ok(tickets);
         }
 
+
+
         // Update ticket
         [HttpPut("tickets/{ticketId}")]
         public async Task<IActionResult> UpdateTicket(Guid ticketId, [FromBody] UpdateTicketRequest request)
         {
-            // Get the session ID from the cookies
-            var sessionId = Request.Cookies["SessionId"];
+            // Get the session ID from the request header
+            var sessionId = Request.Headers["SessionId"].ToString();
 
-            if (string.IsNullOrEmpty(sessionId))
+            // Validate the staff session and role
+            var validationResponse = await ValidateStaffSession(sessionId);
+            if (validationResponse != null)
             {
-                return Unauthorized("Session ID is required.");
+                return validationResponse;
             }
 
-            // Get the active staff session
-            var staffSession = await _context.StaffSessions
-                .FirstOrDefaultAsync(ss => ss.StaffSessionId == sessionId && ss.IsActive);
-
-            if (staffSession == null)
-            {
-                return Unauthorized("Invalid or inactive staff session.");
-            }
-
-            // Retrieve the ticket to be updated
             var ticket = await _context.SupportTickets.FindAsync(ticketId);
             if (ticket == null)
             {
@@ -115,18 +129,14 @@ namespace Cold_Storage_GO.Controllers
             // Update ticket properties with the request values
             ticket.Status = request.Status ?? ticket.Status;
             ticket.Priority = request.Priority ?? ticket.Priority;
-
-            // Assign the ticket to the current staff member based on their session
-            ticket.StaffId = staffSession.StaffId; // Set to the staff ID from the session
+            ticket.StaffId = request.AssignedTo ?? ticket.StaffId;
             ticket.ResolvedAt = request.ResolvedAt ?? ticket.ResolvedAt;
 
-            // Save the updated ticket
             _context.SupportTickets.Update(ticket);
             await _context.SaveChangesAsync();
 
             return Ok(ticket);
         }
-
     }
 
     // UpdateTicketRequest model to be used in the UpdateTicket method
@@ -134,6 +144,7 @@ namespace Cold_Storage_GO.Controllers
     {
         public string Status { get; set; }
         public string Priority { get; set; }
+        public Guid? AssignedTo { get; set; }
         public DateTime? ResolvedAt { get; set; }
     }
 }

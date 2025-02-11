@@ -11,18 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cold_Storage_GO.Migrations
 {
     [DbContext(typeof(DbContexts))]
-<<<<<<< HEAD:Migrations/20250211163600_babyplease.Designer.cs
     [Migration("20250211163600_babyplease")]
     partial class babyplease
-=======
-<<<<<<<< HEAD:Migrations/20250114143338_ChangeStringLengthMealKit.Designer.cs
-    [Migration("20250114143338_ChangeStringLengthMealKit")]
-    partial class ChangeStringLengthMealKit
-========
-    [Migration("20250202160631_removeemailfromsupporticket")]
-    partial class removeemailfromsupporticket
->>>>>>>> AccountManagementandHelpCentreSupportV3:Migrations/20250202160631_removeemailfromsupporticket.Designer.cs
->>>>>>> a844d81e67b761d49274576d4070abdfc12fa0c3:Migrations/20250114143338_ChangeStringLengthMealKit.Designer.cs
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -252,12 +242,9 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<DateTime>("ExpiryDate")
                         .HasColumnType("datetime");
 
-<<<<<<<< HEAD:Migrations/20250114143338_ChangeStringLengthMealKit.Designer.cs
                     b.Property<string>("Ingredients")
                         .HasColumnType("longtext");
 
-========
->>>>>>>> AccountManagementandHelpCentreSupportV3:Migrations/20250202160631_removeemailfromsupporticket.Designer.cs
                     b.Property<byte[]>("ListingImage")
                         .HasColumnType("longblob");
 
@@ -839,13 +826,13 @@ namespace Cold_Storage_GO.Migrations
                     b.HasOne("Cold_Storage_GO.Models.User", "Followed")
                         .WithMany("Followers")
                         .HasForeignKey("FollowedId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Cold_Storage_GO.Models.User", "Follower")
                         .WithMany("Following")
                         .HasForeignKey("FollowerId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Followed");

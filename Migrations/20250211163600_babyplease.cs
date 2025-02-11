@@ -7,15 +7,7 @@ using MySql.EntityFrameworkCore.Metadata;
 namespace Cold_Storage_GO.Migrations
 {
     /// <inheritdoc />
-<<<<<<< HEAD:Migrations/20250211163600_babyplease.cs
     public partial class babyplease : Migration
-=======
-<<<<<<<< HEAD:Migrations/20250114050358_initialcreate.cs
-    public partial class initialcreate : Migration
-========
-    public partial class resetDBAddDeleteCascading : Migration
->>>>>>>> AccountManagementandHelpCentreSupportV3:Migrations/20250114163711_resetDBAddDeleteCascading.cs
->>>>>>> a844d81e67b761d49274576d4070abdfc12fa0c3:Migrations/20250114050358_initialcreate.cs
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -145,13 +137,9 @@ namespace Cold_Storage_GO.Migrations
                     ExpiryDate = table.Column<DateTime>(type: "datetime", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime", nullable: false),
-<<<<<<<< HEAD:Migrations/20250114050358_initialcreate.cs
                     ListingImage = table.Column<byte[]>(type: "longblob", nullable: true),
                     Tags = table.Column<string>(type: "longtext", nullable: true),
                     Ingredients = table.Column<string>(type: "longtext", nullable: true)
-========
-                    ListingImage = table.Column<byte[]>(type: "longblob", nullable: true)
->>>>>>>> AccountManagementandHelpCentreSupportV3:Migrations/20250114163711_resetDBAddDeleteCascading.cs
                 },
                 constraints: table =>
                 {
@@ -416,13 +404,13 @@ namespace Cold_Storage_GO.Migrations
                         column: x => x.FollowedId,
                         principalTable: "Users",
                         principalColumn: "UserId",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Follows_Users_FollowerId",
                         column: x => x.FollowerId,
                         principalTable: "Users",
                         principalColumn: "UserId",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 

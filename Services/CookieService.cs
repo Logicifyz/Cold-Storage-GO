@@ -12,14 +12,4 @@ public static class CookieService
             Expires = DateTime.UtcNow.AddMinutes(expiryMinutes)  // Set an expiration time for the session
         });
     }
-    public static void RemoveCookie(HttpContext httpContext, string key)
-    {
-        httpContext.Response.Cookies.Append(key, string.Empty, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,  // Ensure it only applies in secure environments
-            SameSite = SameSiteMode.None,
-            Expires = DateTime.UtcNow.AddDays(-1)  // Set expiration date in the past to remove the cookie
-        });
-    }
 }

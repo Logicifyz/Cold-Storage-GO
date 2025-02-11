@@ -18,7 +18,6 @@ namespace Cold_Storage_GO
         public DbSet<Follows> Follows { get; set; }
         public DbSet<Staff> Staff { get; set; }
         public DbSet<SupportTicket> SupportTickets { get; set; }
-        public DbSet<TicketImage> TicketImage { get; set; }
         public DbSet<StaffSession> StaffSessions { get; set; }
         public DbSet<Article> Articles { get; set; }
         public DbSet<Dish> Dishes { get; set; }
@@ -49,13 +48,13 @@ namespace Cold_Storage_GO
                 .HasOne(f => f.Follower)
                 .WithMany(f => f.Following)
                 .HasForeignKey(f => f.FollowerId)
-                .OnDelete(DeleteBehavior.Cascade);  // Change Restrict to Cascade
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<Follows>()
                 .HasOne(f => f.Followed)
                 .WithMany(f => f.Followers)
                 .HasForeignKey(f => f.FollowedId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
 
             // Configure NutritionalFacts relationships
             modelBuilder.Entity<NutritionalFacts>()

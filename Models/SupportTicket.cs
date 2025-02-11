@@ -36,8 +36,5 @@ namespace Cold_Storage_GO.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow; // Auto-set creation date
 
         public DateTime? ResolvedAt { get; set; } // Nullable for unresolved tickets
-
-        public virtual ICollection<TicketImage> Images { get; set; } = new List<TicketImage>();
-
     }
 }

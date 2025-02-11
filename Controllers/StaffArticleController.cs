@@ -3,11 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Cold_Storage_GO.Models;
 using System;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 
 namespace Cold_Storage_GO.Controllers
 {
-    [AllowAnonymous]
     [ApiController]
     [Route("api/[controller]")]
     public class StaffArticleController : ControllerBase
@@ -48,81 +46,12 @@ namespace Cold_Storage_GO.Controllers
             return Ok(staffSession.StaffId); // Return the StaffId for use
         }
 
-
-        [HttpGet("articles")]
-        public async Task<IActionResult> GetAllArticles(
-    [FromQuery] string category = null,
-    [FromQuery] string title = null,
-    [FromQuery] Guid? staffId = null, // Filter for articles created/updated by a specific staff member
-    [FromQuery] bool? highlighted = null, // Filter for highlighted articles
-    [FromQuery] int? minViews = null, // Filter for minimum views
-    [FromQuery] Guid? articleId = null // Added articleId filter
-)
-        {
-            // Get the session ID from the cookies
-            var sessionId = Request.Cookies["SessionId"];
-
-            if (string.IsNullOrEmpty(sessionId))
-            {
-                return Unauthorized("Session ID is required.");
-            }
-
-            // Validate session
-            var staffSession = await _context.StaffSessions
-                .FirstOrDefaultAsync(ss => ss.StaffSessionId == sessionId && ss.IsActive);
-
-            if (staffSession == null)
-            {
-                return Unauthorized("Invalid or inactive staff session.");
-            }
-
-            var query = _context.Articles.AsQueryable();
-
-            // Apply filters if they are provided
-            if (!string.IsNullOrEmpty(category))
-            {
-                query = query.Where(a => a.Category == category);
-            }
-
-            if (!string.IsNullOrEmpty(title))
-            {
-                query = query.Where(a => a.Title.Contains(title));
-            }
-
-            // Apply the staffId filter if provided
-            if (staffId.HasValue)
-            {
-                query = query.Where(a => a.StaffId == staffId.Value);
-            }
-
-            // Apply highlighted filter if provided
-            if (highlighted.HasValue)
-            {
-                query = query.Where(a => a.Highlighted == highlighted.Value);
-            }
-
-            // Apply views filter if minimum views is provided
-            if (minViews.HasValue)
-            {
-                query = query.Where(a => a.Views >= minViews.Value);
-            }
-
-            // Apply the articleId filter if provided
-            if (articleId.HasValue)
-            {
-                query = query.Where(a => a.ArticleId == articleId.Value);
-            }
-
-            var articles = await query.ToListAsync();
-            return Ok(articles);
-        }
-
         // Create a new article
         [HttpPost("articles")]
         public async Task<IActionResult> CreateArticle([FromBody] CreateArticleRequest request)
         {
             // Get the session ID from the request header
-            var sessionId = Request.Cookies["SessionId"];
+            var sessionId = Request.Headers["SessionId"].ToString();
 
             // Validate the staff session and role
             var validationResponse = await ValidateStaffSession(sessionId);
@@ -164,7 +93,7 @@ namespace Cold_Storage_GO.Controllers
         public async Task<IActionResult> UpdateArticle(Guid articleId, [FromBody] UpdateArticleRequest request)
         {
             // Get the session ID from the request header
-            var sessionId = Request.Cookies["SessionId"];
+            var sessionId = Request.Headers["SessionId"].ToString();
 
             // Validate the staff session and role
             var validationResponse = await ValidateStaffSession(sessionId);
