@@ -117,6 +117,7 @@ namespace Cold_Storage_GO.Controllers
                     Priority = ticket.Priority ?? "Unassigned",
                     Status = ticket.Status ?? "Unassigned",
                     CreatedAt = ticket.CreatedAt,
+                    ResolvedAt = ticket.ResolvedAt, // Always included, null if unresolved
                     Images = ticket.Images.Select(img => new
                     {
                         img.ImageId,
@@ -125,11 +126,7 @@ namespace Cold_Storage_GO.Controllers
                     }).ToList() // Include images as base64 (optional, you can change this to store a path instead)
                 };
 
-                // Dynamically add ResolvedAt if it's not null
-                if (ticket.ResolvedAt.HasValue)
-                {
-                    response.GetType().GetProperty("ResolvedAt").SetValue(response, ticket.ResolvedAt);
-                }
+                
 
                 return response;
             }).ToList();

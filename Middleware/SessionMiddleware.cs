@@ -29,7 +29,7 @@ namespace Cold_Storage_GO.Middleware
             {
                 "/api/Auth/login","/api/Auth/google-login","/api/staff/login","/api/Auth/register","/api/Auth/request-password-reset","/api/Auth/reset-password","/api/Auth/staff/login", "/swagger", "/api/Account/profile/", "/api/HelpCentre",
                 "/api/MealKit", "/api/Recipes", "/api/deliveries", "/api/deliveries/",
-                "/api/subscriptions"
+                "/api/subscriptions", "api/HelpCentre", "api/HelpCentre/"
             };
 
             _logger.LogInformation("Request Path: {RequestPath}", requestPath);
