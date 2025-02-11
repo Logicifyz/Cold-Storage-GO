@@ -48,7 +48,7 @@ namespace Cold_Storage_GO
         public DbSet<Subscription> Subscriptions { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<Delivery> Deliveries { get; set; }
-
+        public DbSet<ChatMessage> ChatMessages { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

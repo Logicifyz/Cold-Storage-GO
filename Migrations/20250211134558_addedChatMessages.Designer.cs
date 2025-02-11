@@ -3,6 +3,7 @@ using System;
 using Cold_Storage_GO;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cold_Storage_GO.Migrations
 {
     [DbContext(typeof(DbContexts))]
-    partial class DbContextsModelSnapshot : ModelSnapshot
+    [Migration("20250211134558_addedChatMessages")]
+    partial class addedChatMessages
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -98,18 +101,10 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<Guid>("StaffId")
                         .HasColumnType("char(36)");
 
-                    b.Property<Guid?>("SupportTicketTicketId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<Guid>("TicketId")
-                        .HasColumnType("char(36)");
-
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");
 
                     b.HasKey("MessageId");
-
-                    b.HasIndex("SupportTicketTicketId");
 
                     b.ToTable("ChatMessages");
                 });
@@ -830,13 +825,6 @@ namespace Cold_Storage_GO.Migrations
                     b.ToTable("Wallets");
                 });
 
-            modelBuilder.Entity("Cold_Storage_GO.Models.ChatMessage", b =>
-                {
-                    b.HasOne("Cold_Storage_GO.Models.SupportTicket", null)
-                        .WithMany("ChatMessages")
-                        .HasForeignKey("SupportTicketTicketId");
-                });
-
             modelBuilder.Entity("Cold_Storage_GO.Models.Comment", b =>
                 {
                     b.HasOne("Cold_Storage_GO.Models.Comment", "ParentComment")
@@ -917,8 +905,6 @@ namespace Cold_Storage_GO.Migrations
 
             modelBuilder.Entity("Cold_Storage_GO.Models.SupportTicket", b =>
                 {
-                    b.Navigation("ChatMessages");
-
                     b.Navigation("Images");
                 });
 
