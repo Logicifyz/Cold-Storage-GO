@@ -83,183 +83,232 @@ namespace Cold_Storage_GO.Controllers
         }
         // Endpoint to delete the account and remove associated data
         [HttpDelete("delete-account")]
-        public async Task<IActionResult> DeleteAccount()
+        public async Task<IActionResult> DeleteAccount([FromBody] DeleteAccountRequest request)
         {
             // Try to get SessionId from request headers first
             var sessionId = HttpContext.Request.Cookies["SessionId"];
 
-
-
+            // Check if the session ID exists in the cookies
             if (string.IsNullOrEmpty(sessionId))
             {
-                return Unauthorized("Session expired or not found.");
+                return Unauthorized(new { message = "Session expired or not found." });
             }
 
             // Get the currently authenticated user based on the session
             var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == sessionId);
             if (session == null)
             {
-                return Unauthorized("Session expired or not found.");
+                return Unauthorized(new { message = "Session expired or not found." });
             }
 
+            // Fetch the user associated with the session
             var user = await _context.Users
                 .Include(u => u.UserAdministration)
                 .FirstOrDefaultAsync(u => u.UserId == session.UserId);
 
             if (user == null)
             {
-                return BadRequest("User not found.");
+                return BadRequest(new { message = "User not found." });
             }
 
-            // Delete the user administration data
+            // Verify the password provided in the request
+            if (!VerifyPassword(request.Password, user.PasswordHash))
+            {
+                return Unauthorized(new { message = "Incorrect password." });
+            }
+
+            // Delete the user administration data if exists
             if (user.UserAdministration != null)
             {
                 _context.UserAdministration.Remove(user.UserAdministration);
             }
 
-            // Delete the user's UserSessions
+            // Remove any active sessions related to the user
             var userUserSessions = await _context.UserSessions.Where(s => s.UserId == user.UserId).ToListAsync();
             _context.UserSessions.RemoveRange(userUserSessions);
 
-            // Delete the user's profile and other related data
+            CookieService.RemoveCookie(HttpContext, "SessionId");
+
+
+            // Delete the user's profile if it exists
             var userProfile = await _context.UserProfiles.Where(up => up.UserId == user.UserId).FirstOrDefaultAsync();
             if (userProfile != null)
             {
                 _context.UserProfiles.Remove(userProfile);
             }
 
-            // Delete the user itself
+            // Remove the user from the database
             _context.Users.Remove(user);
 
             // Save all changes to the database
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "Account and all associated data deleted successfully." });
+            // Return a success message
+            return Ok(new { message = "Account and all associated data deleted successfully." });
         }
+
+        // Helper method to verify the password
+        private bool VerifyPassword(string inputPassword, string storedPasswordHash)
+        {
+            // Assuming you're using a hashing algorithm like BCrypt
+            return BCrypt.Net.BCrypt.Verify(inputPassword, storedPasswordHash);
+        }
+
+        // Request model to accept the password in the request body
+
 
 
 
         [HttpPut("update-profile")]
-        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+        public async Task<IActionResult> UpdateProfile([FromForm] UpdateProfileRequest request)
         {
             _logger.LogDebug("Received request to update profile.");
 
-            // Get the currently authenticated user based on the session
-            var sessionId = HttpContext.Request.Cookies["SessionId"];
-            _logger.LogDebug($"Session ID retrieved: {sessionId}");
-
-            if (string.IsNullOrEmpty(sessionId))
+            try
             {
-                _logger.LogDebug("Session ID is empty or null.");
-                return Unauthorized("Session expired or not found.");
-            }
+                // Get the currently authenticated user based on the session
+                var sessionId = HttpContext.Request.Cookies["SessionId"];
+                _logger.LogDebug($"Session ID retrieved: {sessionId}");
 
-            // Get the currently authenticated user based on the session
-            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == sessionId);
-            if (session == null)
-            {
-                _logger.LogDebug("User session not found.");
-                return Unauthorized("Session expired or not found.");
-            }
-            _logger.LogDebug($"Session found for user {session.UserId}.");
-
-            // Retrieve the user profile associated with the current user
-            var userProfile = await _context.UserProfiles.FirstOrDefaultAsync(up => up.UserId == session.UserId);
-            if (userProfile == null)
-            {
-                _logger.LogDebug($"User profile not found for user {session.UserId}.");
-                return NotFound("User profile not found.");
-            }
-            _logger.LogDebug($"User profile found for user {session.UserId}.");
-
-            // Retrieve the user details from the User table
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == session.UserId);
-            if (user == null)
-            {
-                _logger.LogDebug($"User not found for user ID {session.UserId}.");
-                return NotFound("User not found.");
-            }
-            _logger.LogDebug($"User details found for user {user.Username}.");
-
-            // Check if the username is already taken, unless the provided username is the same as the current one
-            if (!string.IsNullOrWhiteSpace(request.Username) && request.Username != user.Username)
-            {
-                _logger.LogDebug($"Checking if username {request.Username} is taken.");
-                var usernameTaken = await _context.Users.AnyAsync(u => u.Username == request.Username);
-                if (usernameTaken)
+                if (string.IsNullOrEmpty(sessionId))
                 {
-                    _logger.LogDebug($"Username {request.Username} is already taken.");
-                    return Conflict("Username is already taken.");
+                    _logger.LogDebug("Session ID is empty or null.");
+                    return Unauthorized(new { Message = "Session expired or not found." });
                 }
-            }
 
-            // Check if the provided email is different from the current user's email, 
-            // and if it is, check if it is already taken.
-            if (!string.IsNullOrWhiteSpace(request.Email) && request.Email != user.Email)
-            {
-                _logger.LogDebug($"Checking if email {request.Email} is taken.");
-                var emailTaken = await _context.Users.AnyAsync(u => u.Email == request.Email);
-                if (emailTaken)
+                // Get the currently authenticated user based on the session
+                var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == sessionId);
+                if (session == null)
                 {
-                    _logger.LogDebug($"Email {request.Email} is already taken.");
-                    return Conflict("Email is already taken.");
+                    _logger.LogDebug("User session not found.");
+                    return Unauthorized(new { Message = "Session expired or not found." });
                 }
-            }
+                _logger.LogDebug($"Session found for user {session.UserId}.");
 
-            // Update the profile with the provided details
-            if (!string.IsNullOrWhiteSpace(request.FullName))
-            {
-                _logger.LogDebug($"Updating full name to {request.FullName}.");
-                userProfile.FullName = request.FullName;
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
-            {
-                _logger.LogDebug($"Updating phone number to {request.PhoneNumber}.");
-                userProfile.PhoneNumber = request.PhoneNumber;
-            }
-
-            // Handle profile picture upload (optional)
-            if (request.ProfilePicture != null)
-            {
-                _logger.LogDebug("Uploading new profile picture.");
-                using (var memoryStream = new MemoryStream())
+                // Retrieve the user profile associated with the current user
+                var userProfile = await _context.UserProfiles.FirstOrDefaultAsync(up => up.UserId == session.UserId);
+                if (userProfile == null)
                 {
-                    await request.ProfilePicture.CopyToAsync(memoryStream);
-                    userProfile.ProfilePicture = memoryStream.ToArray();  // Store as a byte array
+                    _logger.LogDebug($"User profile not found for user {session.UserId}.");
+                    return NotFound(new { Message = "User profile not found." });
                 }
-            }
+                _logger.LogDebug($"User profile found for user {session.UserId}.");
 
-            // Update username and email if they are provided and not already taken
-            if (!string.IsNullOrWhiteSpace(request.Username))
+                // Retrieve the user details from the User table
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == session.UserId);
+                if (user == null)
+                {
+                    _logger.LogDebug($"User not found for user ID {session.UserId}.");
+                    return NotFound(new { Message = "User not found." });
+                }
+                _logger.LogDebug($"User details found for user {user.Username}.");
+
+                if (!string.IsNullOrWhiteSpace(request.Username) && request.Username != user.Username)
+                {
+                    _logger.LogDebug($"Checking if username {request.Username} is taken.");
+                    var usernameTaken = await _context.Users.AnyAsync(u => u.Username == request.Username);
+                    if (usernameTaken)
+                    {
+                        _logger.LogDebug($"Username {request.Username} is already taken.");
+                        return Conflict(new { Message = "Username is already taken." });
+                    }
+                }
+
+                
+                if (!string.IsNullOrWhiteSpace(request.Email) && request.Email != user.Email)
+                {
+                    _logger.LogDebug($"Checking if email {request.Email} is taken.");
+                    var emailTaken = await _context.Users.AnyAsync(u => u.Email == request.Email);
+                    if (emailTaken)
+                    {
+                        _logger.LogDebug($"Email {request.Email} is already taken.");
+                        return Conflict(new { Message = "Email is already taken." });
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(request.FullName))
+                {
+                    _logger.LogDebug($"Updating full name to {request.FullName}.");
+                    userProfile.FullName = request.FullName;
+                }
+
+                if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
+                {
+                    _logger.LogDebug($"Updating phone number to {request.PhoneNumber}.");
+                    userProfile.PhoneNumber = request.PhoneNumber;
+                }
+
+                // Handle profile picture upload (optional)
+                if (request.ProfilePicture != null)
+                {
+                    _logger.LogDebug("Uploading new profile picture.");
+
+                    // Check if the file size exceeds the limit (e.g., 2MB)
+                    const long maxSizeInBytes = 2 * 1024 * 1024; // 2 MB
+                    if (request.ProfilePicture.Length > maxSizeInBytes)
+                    {
+                        _logger.LogDebug("File size exceeds the maximum allowed size.");
+                        return BadRequest(new { Message = "Profile picture is too large. Maximum size is 2MB." });
+                    }
+
+                    // Check if the file type is allowed (e.g., JPG, PNG)
+                    var allowedExtensions = new[] { ".jpg", ".jpeg", ".png" };
+                    var fileExtension = Path.GetExtension(request.ProfilePicture.FileName).ToLower();
+                    if (!allowedExtensions.Contains(fileExtension))
+                    {
+                        _logger.LogDebug("Invalid file type.");
+                        return BadRequest(new { Message = "Invalid file type. Only JPG and PNG images are allowed." });
+                    }
+
+                    // Store the image as a byte array (if size and type are valid)
+                    using (var memoryStream = new MemoryStream())
+                    {
+                        await request.ProfilePicture.CopyToAsync(memoryStream);
+                        userProfile.ProfilePicture = memoryStream.ToArray();  // Store as a byte array
+                    }
+                }
+
+
+                // Update username and email if they are provided and not already taken
+                if (!string.IsNullOrWhiteSpace(request.Username))
+                {
+                    // If the username is different from the current username, update it
+                    _logger.LogDebug($"Updating username to {request.Username}.");
+                    user.Username = request.Username;
+                }
+
+                if (!string.IsNullOrWhiteSpace(request.Email))
+                {
+                    // If the email is different from the current email, update it
+                    _logger.LogDebug($"Updating email to {request.Email}.");
+                    user.Email = request.Email;
+                }
+
+                // Save changes to the database
+                _logger.LogDebug("Saving changes to the database.");
+                _context.UserProfiles.Update(userProfile);
+                _context.Users.Update(user); // Update the User table with the new username/email
+                await _context.SaveChangesAsync();
+
+                _logger.LogDebug("Profile updated successfully.");
+                return Ok(new { Message = "Profile updated successfully." });
+            }
+            catch (Exception ex)
             {
-                // If the username is different from the current username, update it
-                _logger.LogDebug($"Updating username to {request.Username}.");
-                user.Username = request.Username;
+                _logger.LogError($"An error occurred while updating the profile: {ex.Message}");
+                return StatusCode(500, new { Message = "An unexpected error occurred. Please try again later." });
             }
-
-            if (!string.IsNullOrWhiteSpace(request.Email))
-            {
-                // If the email is different from the current email, update it
-                _logger.LogDebug($"Updating email to {request.Email}.");
-                user.Email = request.Email;
-            }
-
-            // Save changes to the database
-            _logger.LogDebug("Saving changes to the database.");
-            _context.UserProfiles.Update(userProfile);
-            _context.Users.Update(user); // Update the User table with the new username/email
-            await _context.SaveChangesAsync();
-
-            _logger.LogDebug("Profile updated successfully.");
-            return Ok(new { Message = "Profile updated successfully." });
         }
+
 
 
 
         [HttpGet("profile")]
         public async Task<IActionResult> GetProfile()
+
+
         {
+            
             // Get the currently authenticated user based on the session
             var sessionId = HttpContext.Request.Cookies["SessionId"];
 
@@ -277,7 +326,7 @@ namespace Cold_Storage_GO.Controllers
 
             // Retrieve the user associated with the session
             var user = await _context.Users
-                .Include(u => u.UserAdministration)  // If you need user-related data like UserAdministration
+                .Include(u => u.UserAdministration)  // Include the UserAdministration to get the verification status
                 .FirstOrDefaultAsync(u => u.UserId == session.UserId);
 
             if (user == null)
@@ -294,7 +343,7 @@ namespace Cold_Storage_GO.Controllers
                 return NotFound("User profile not found.");
             }
 
-            // Create a response model with the necessary profile data, including username and email
+            // Create a response model with the necessary profile data, including username, email, and verified status
             var profileResponse = new
             {
                 UserId = user.UserId,
@@ -304,11 +353,12 @@ namespace Cold_Storage_GO.Controllers
                 PhoneNumber = userProfile.PhoneNumber,
                 StreetAddress = userProfile.StreetAddress,
                 PostalCode = userProfile.PostalCode,
-                ProfilePicture = userProfile.ProfilePicture
+                ProfilePicture = userProfile.ProfilePicture,
+                Verified = user.UserAdministration.Verified,
             };
-
             return Ok(profileResponse);
         }
+
 
 
         [HttpGet("profile/{username}")]
@@ -337,7 +387,15 @@ namespace Cold_Storage_GO.Controllers
         public async Task<IActionResult> Follow([FromBody] FollowRequest request)
         {
             // Get the current user based on the session
-            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == HttpContext.Request.Headers["SessionId"]);
+            var sessionId = HttpContext.Request.Cookies["SessionId"];
+
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                return Unauthorized("Session expired or not found.");
+            }
+
+            // Get the currently authenticated user based on the session
+            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == sessionId);
             if (session == null)
             {
                 return Unauthorized("Session expired or not found.");
@@ -388,7 +446,15 @@ namespace Cold_Storage_GO.Controllers
         public async Task<IActionResult> Unfollow([FromBody] FollowRequest request)
         {
             // Get the current user based on the session
-            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == HttpContext.Request.Headers["SessionId"]);
+            var sessionId = HttpContext.Request.Cookies["SessionId"];
+
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                return Unauthorized("Session expired or not found.");
+            }
+
+            // Get the currently authenticated user based on the session
+            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == sessionId);
             if (session == null)
             {
                 return Unauthorized("Session expired or not found.");
@@ -427,20 +493,18 @@ namespace Cold_Storage_GO.Controllers
         }
 
         // Get Following List API
-        [HttpGet("following")]
-        public async Task<IActionResult> GetFollowingList()
+        [HttpGet("following/{username}")]
+        public async Task<IActionResult> GetFollowingList(string username)
         {
-            // Get the current user based on the session
-            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == HttpContext.Request.Headers["SessionId"]);
-            if (session == null)
+            if (string.IsNullOrEmpty(username))
             {
-                return Unauthorized("Session expired or not found.");
+                return BadRequest("Username is required.");
             }
 
             var user = await _context.Users
-            .Include(u => u.Following)
-                .ThenInclude(f => f.Followed) // Make sure Followed is included
-            .FirstOrDefaultAsync(u => u.UserId == session.UserId);
+                .Include(u => u.Following)
+                    .ThenInclude(f => f.Followed)
+                .FirstOrDefaultAsync(u => u.Username == username);
 
             if (user == null)
             {
@@ -448,7 +512,7 @@ namespace Cold_Storage_GO.Controllers
             }
 
             var followingList = user.Following
-                .Where(f => f.Followed != null) // Ensure Followed is not null
+                .Where(f => f.Followed != null)
                 .Select(f => new
                 {
                     f.Followed.Username,
@@ -459,21 +523,18 @@ namespace Cold_Storage_GO.Controllers
             return Ok(followingList);
         }
 
-        // Get Followers List API
-        [HttpGet("followers")]
-        public async Task<IActionResult> GetFollowersList()
+        [HttpGet("followers/{username}")]
+        public async Task<IActionResult> GetFollowersList(string username)
         {
-            // Get the current user based on the session
-            var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.IsActive && s.UserSessionId == HttpContext.Request.Headers["SessionId"]);
-            if (session == null)
+            if (string.IsNullOrEmpty(username))
             {
-                return Unauthorized("Session expired or not found.");
+                return BadRequest("Username is required.");
             }
 
             var user = await _context.Users
-        .Include(u => u.Followers)
-            .ThenInclude(f => f.Follower) // Make sure Follower is included
-        .FirstOrDefaultAsync(u => u.UserId == session.UserId);
+                .Include(u => u.Followers)
+                    .ThenInclude(f => f.Follower)
+                .FirstOrDefaultAsync(u => u.Username == username);
 
             if (user == null)
             {
@@ -481,7 +542,7 @@ namespace Cold_Storage_GO.Controllers
             }
 
             var followersList = user.Followers
-                .Where(f => f.Follower != null) // Ensure Follower is not null
+                .Where(f => f.Follower != null)
                 .Select(f => new
                 {
                     f.Follower.Username,
@@ -490,11 +551,14 @@ namespace Cold_Storage_GO.Controllers
                 .ToList();
 
             return Ok(followersList);
-
         }
 
 
-
+        public class DeleteAccountRequest
+        {
+            [Required]
+            public string Password { get; set; }
+        }
         // Request Model for password change
         public class ChangePasswordRequest
         {
@@ -512,26 +576,25 @@ namespace Cold_Storage_GO.Controllers
         // Request model for updating the profile
         public class UpdateProfileRequest
         {
-            public string? FullName { get; set; }
-            public string? PhoneNumber { get; set; }
-
-            // Optional profile picture
-            public IFormFile? ProfilePicture { get; set; }
-
-            [Required(ErrorMessage = "Email is required.")]
-            [EmailAddress(ErrorMessage = "Invalid email format.")]
             public string Email { get; set; }
-
-            [Required(ErrorMessage = "Username is required.")]
-            [StringLength(50, ErrorMessage = "Username can't be longer than 50 characters.")]
             public string Username { get; set; }
+            public string PhoneNumber { get; set; }
+            public string FullName { get; set; }
+            public IFormFile? ProfilePicture { get; set; } // Use IFormFile for file uploads
         }
 
         // Request Model for Follow/Unfollow
         public class FollowRequest
         {
-            [Required]
+            [Required(ErrorMessage = "Username is required.")]
             public string Username { get; set; }
+        }
+        public static class PasswordHelper
+        {
+            public static string HashPassword(string password)
+            {
+                return BCrypt.Net.BCrypt.HashPassword(password);
+            }
         }
     }
 }

@@ -4,9 +4,11 @@ using Cold_Storage_GO.Models;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Cold_Storage_GO.Controllers
 {
+    [AllowAnonymous]
     [ApiController]
     [Route("api/[controller]")]
     public class HelpCentreController : ControllerBase
@@ -21,9 +23,10 @@ namespace Cold_Storage_GO.Controllers
         // Get articles with optional filters
         [HttpGet]
         public async Task<IActionResult> GetArticles(
-            [FromQuery] string category = null,
-            [FromQuery] bool? highlighted = null,
-            [FromQuery] string search = null)
+    [FromQuery] string category = null,
+    [FromQuery] bool? highlighted = null,
+    [FromQuery] string search = null,
+    [FromQuery] bool? faq = null) // Added `faq` query parameter
         {
             var query = _context.Articles.AsQueryable();
 
@@ -47,14 +50,24 @@ namespace Cold_Storage_GO.Controllers
                     article.Content.Contains(search));
             }
 
-            // Order by created date descending (most recent first)
-            query = query.OrderByDescending(article => article.CreatedAt);
+            // If faq=true, filter to return the top 5 most viewed articles
+            if (faq.HasValue && faq.Value)
+            {
+                query = query.OrderByDescending(article => article.Views) // Order by view count
+                             .Take(5); // Limit to top 5 most viewed
+            }
+            else
+            {
+                // Order by created date descending (most recent first)
+                query = query.OrderByDescending(article => article.CreatedAt);
+            }
 
             // Fetch articles from the database
             var articles = await query.ToListAsync();
 
             return Ok(articles);
         }
+
 
         [HttpPost("{articleId}/increment-views")]
         public async Task<IActionResult> IncrementViews(Guid articleId)
