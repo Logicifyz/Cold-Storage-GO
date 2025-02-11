@@ -287,6 +287,10 @@ public class WebSocketManager
     public async Task BroadcastMessageAsync(WebSocketMessage message)
     {
         LogSockets();
+        message.type = "ReceiveMessage";
+
+        _logger.LogInformation("Broadcasting message: {message}", JsonSerializer.Serialize(message));
+
 
         if (_webSocketService.Sockets.TryGetValue(message.ticketId, out var sockets))
         {
@@ -372,7 +376,7 @@ public class WebSocketManager
     }
 }
 
-
+  
 
 
 
