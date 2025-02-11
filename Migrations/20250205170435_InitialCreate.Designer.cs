@@ -3,6 +3,7 @@ using System;
 using Cold_Storage_GO;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cold_Storage_GO.Migrations
 {
     [DbContext(typeof(DbContexts))]
-    partial class DbContextsModelSnapshot : ModelSnapshot
+    [Migration("20250205170435_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -24,6 +27,10 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<Guid>("RequestId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
+
+                    b.Property<string>("AvoidCookingMethods")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<string>("CookingTime")
                         .IsRequired()
@@ -47,6 +54,10 @@ namespace Cold_Storage_GO.Migrations
 
                     b.Property<int?>("MaxIngredients")
                         .HasColumnType("int");
+
+                    b.Property<string>("MealType")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<bool>("NeedsClarification")
                         .HasColumnType("tinyint(1)");
@@ -93,9 +104,8 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("longtext");
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");
@@ -915,6 +925,10 @@ namespace Cold_Storage_GO.Migrations
 
                     b.Property<int?>("MaxIngredients")
                         .HasColumnType("int");
+
+                    b.Property<string>("MealType")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<bool>("NeedsClarification")
                         .HasColumnType("tinyint(1)");

@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cold_Storage_GO.Migrations
 {
     [DbContext(typeof(DbContexts))]
-    [Migration("20250115074647_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250206080209_RemovedMealTypeandCookingMethodsinRequest")]
+    partial class RemovedMealTypeandCookingMethodsinRequest
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -22,25 +22,104 @@ namespace Cold_Storage_GO.Migrations
                 .HasAnnotation("ProductVersion", "8.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
-            modelBuilder.Entity("Cold_Storage_GO.Models.AIRecommendation", b =>
+            modelBuilder.Entity("Cold_Storage_GO.Models.AIRecipeRequest", b =>
+                {
+                    b.Property<Guid>("RequestId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("AvoidCookingMethods")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("CookingTime")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("DietaryPreferences")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ExcludeIngredients")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("FreeText")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Ingredients")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int?>("MaxIngredients")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MealType")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("NeedsClarification")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Preference")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int?>("Servings")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("TrendingRequest")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("UseChat")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("RequestId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("AIRecipeRequests");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.AIResponseLog", b =>
                 {
                     b.Property<Guid>("ChatId")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("FinalRecipeId")
                         .HasColumnType("char(36)");
 
                     b.Property<string>("Message")
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<bool>("NeedsFinalDish")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("UserResponse")
+                        .HasColumnType("longtext");
+
                     b.HasKey("ChatId");
 
-                    b.ToTable("AIRecommendations");
+                    b.HasIndex("FinalRecipeId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("AIResponseLogs");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.Article", b =>
@@ -219,6 +298,61 @@ namespace Cold_Storage_GO.Migrations
                     b.HasKey("DishId");
 
                     b.ToTable("Dishes");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.FinalDish", b =>
+                {
+                    b.Property<Guid>("DishId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("CookingTime")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Difficulty")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Ingredients")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("Servings")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Steps")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Tags")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("UserId1")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("DishId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId1");
+
+                    b.ToTable("FinalDishes");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.Follows", b =>
@@ -775,6 +909,42 @@ namespace Cold_Storage_GO.Migrations
                     b.ToTable("UserProfiles");
                 });
 
+            modelBuilder.Entity("Cold_Storage_GO.Models.UserRecipeRequest", b =>
+                {
+                    b.Property<string>("CookingTime")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Cuisine")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("FreeText")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int?>("MaxIngredients")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MealType")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("NeedsClarification")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("Servings")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("TrendingRequest")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.ToTable("UserRecipeRequests");
+                });
+
             modelBuilder.Entity("Cold_Storage_GO.Models.UserSession", b =>
                 {
                     b.Property<Guid>("Id")
@@ -826,6 +996,29 @@ namespace Cold_Storage_GO.Migrations
                     b.ToTable("Wallets");
                 });
 
+            modelBuilder.Entity("Cold_Storage_GO.Models.AIRecipeRequest", b =>
+                {
+                    b.HasOne("Cold_Storage_GO.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.AIResponseLog", b =>
+                {
+                    b.HasOne("Cold_Storage_GO.Models.FinalDish", null)
+                        .WithMany()
+                        .HasForeignKey("FinalRecipeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Cold_Storage_GO.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Cold_Storage_GO.Models.Comment", b =>
                 {
                     b.HasOne("Cold_Storage_GO.Models.Comment", "ParentComment")
@@ -834,6 +1027,49 @@ namespace Cold_Storage_GO.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("ParentComment");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.FinalDish", b =>
+                {
+                    b.HasOne("Cold_Storage_GO.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Cold_Storage_GO.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId1");
+
+                    b.OwnsOne("Cold_Storage_GO.Models.NutritionInfo", "Nutrition", b1 =>
+                        {
+                            b1.Property<Guid>("FinalDishDishId")
+                                .HasColumnType("char(36)");
+
+                            b1.Property<int>("Calories")
+                                .HasColumnType("int");
+
+                            b1.Property<int>("Carbs")
+                                .HasColumnType("int");
+
+                            b1.Property<int>("Fats")
+                                .HasColumnType("int");
+
+                            b1.Property<int>("Protein")
+                                .HasColumnType("int");
+
+                            b1.HasKey("FinalDishDishId");
+
+                            b1.ToTable("FinalDishes");
+
+                            b1.WithOwner()
+                                .HasForeignKey("FinalDishDishId");
+                        });
+
+                    b.Navigation("Nutrition")
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.Follows", b =>

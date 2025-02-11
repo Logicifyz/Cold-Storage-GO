@@ -16,21 +16,6 @@ namespace Cold_Storage_GO.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "AIRecommendations",
-                columns: table => new
-                {
-                    ChatId = table.Column<Guid>(type: "char(36)", nullable: false),
-                    UserId = table.Column<Guid>(type: "char(36)", nullable: false),
-                    Message = table.Column<string>(type: "longtext", nullable: false),
-                    Timestamp = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_AIRecommendations", x => x.ChatId);
-                })
-                .Annotation("MySQL:Charset", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "Articles",
                 columns: table => new
                 {
@@ -303,6 +288,25 @@ namespace Cold_Storage_GO.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "UserRecipeRequests",
+                columns: table => new
+                {
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    FreeText = table.Column<string>(type: "longtext", nullable: false),
+                    MaxIngredients = table.Column<int>(type: "int", nullable: true),
+                    Cuisine = table.Column<string>(type: "longtext", nullable: false),
+                    CookingTime = table.Column<string>(type: "longtext", nullable: false),
+                    MealType = table.Column<string>(type: "longtext", nullable: false),
+                    Servings = table.Column<int>(type: "int", nullable: true),
+                    NeedsClarification = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    TrendingRequest = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "Users",
                 columns: table => new
                 {
@@ -425,6 +429,76 @@ namespace Cold_Storage_GO.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "AIRecipeRequests",
+                columns: table => new
+                {
+                    RequestId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    Ingredients = table.Column<string>(type: "longtext", nullable: false),
+                    ExcludeIngredients = table.Column<string>(type: "longtext", nullable: false),
+                    DietaryPreferences = table.Column<string>(type: "longtext", nullable: false),
+                    MaxIngredients = table.Column<int>(type: "int", nullable: true),
+                    Preference = table.Column<string>(type: "longtext", nullable: false),
+                    FreeText = table.Column<string>(type: "longtext", nullable: false),
+                    UseChat = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CookingTime = table.Column<string>(type: "longtext", nullable: false),
+                    MealType = table.Column<string>(type: "longtext", nullable: false),
+                    Servings = table.Column<int>(type: "int", nullable: true),
+                    AvoidCookingMethods = table.Column<string>(type: "longtext", nullable: false),
+                    NeedsClarification = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    TrendingRequest = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AIRecipeRequests", x => x.RequestId);
+                    table.ForeignKey(
+                        name: "FK_AIRecipeRequests_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "FinalDishes",
+                columns: table => new
+                {
+                    DishId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    UserId1 = table.Column<Guid>(type: "char(36)", nullable: true),
+                    Title = table.Column<string>(type: "longtext", nullable: false),
+                    Description = table.Column<string>(type: "longtext", nullable: false),
+                    Ingredients = table.Column<string>(type: "longtext", nullable: false),
+                    Steps = table.Column<string>(type: "longtext", nullable: false),
+                    Nutrition_Calories = table.Column<int>(type: "int", nullable: false),
+                    Nutrition_Protein = table.Column<int>(type: "int", nullable: false),
+                    Nutrition_Carbs = table.Column<int>(type: "int", nullable: false),
+                    Nutrition_Fats = table.Column<int>(type: "int", nullable: false),
+                    Tags = table.Column<string>(type: "longtext", nullable: false),
+                    Servings = table.Column<int>(type: "int", nullable: false),
+                    CookingTime = table.Column<string>(type: "longtext", nullable: false),
+                    Difficulty = table.Column<string>(type: "longtext", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FinalDishes", x => x.DishId);
+                    table.ForeignKey(
+                        name: "FK_FinalDishes_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_FinalDishes_Users_UserId1",
+                        column: x => x.UserId1,
+                        principalTable: "Users",
+                        principalColumn: "UserId");
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "Follows",
                 columns: table => new
                 {
@@ -500,10 +574,66 @@ namespace Cold_Storage_GO.Migrations
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
+            migrationBuilder.CreateTable(
+                name: "AIResponseLogs",
+                columns: table => new
+                {
+                    ChatId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    Message = table.Column<string>(type: "longtext", nullable: false),
+                    Type = table.Column<int>(type: "int", nullable: false),
+                    UserResponse = table.Column<string>(type: "longtext", nullable: true),
+                    FinalRecipeId = table.Column<Guid>(type: "char(36)", nullable: true),
+                    NeedsFinalDish = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    Timestamp = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AIResponseLogs", x => x.ChatId);
+                    table.ForeignKey(
+                        name: "FK_AIResponseLogs_FinalDishes_FinalRecipeId",
+                        column: x => x.FinalRecipeId,
+                        principalTable: "FinalDishes",
+                        principalColumn: "DishId",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_AIResponseLogs_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AIRecipeRequests_UserId",
+                table: "AIRecipeRequests",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AIResponseLogs_FinalRecipeId",
+                table: "AIResponseLogs",
+                column: "FinalRecipeId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AIResponseLogs_UserId",
+                table: "AIResponseLogs",
+                column: "UserId");
+
             migrationBuilder.CreateIndex(
                 name: "IX_Comments_ParentCommentId",
                 table: "Comments",
                 column: "ParentCommentId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FinalDishes_UserId",
+                table: "FinalDishes",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FinalDishes_UserId1",
+                table: "FinalDishes",
+                column: "UserId1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Follows_FollowedId",
@@ -531,7 +661,10 @@ namespace Cold_Storage_GO.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "AIRecommendations");
+                name: "AIRecipeRequests");
+
+            migrationBuilder.DropTable(
+                name: "AIResponseLogs");
 
             migrationBuilder.DropTable(
                 name: "Articles");
@@ -588,10 +721,16 @@ namespace Cold_Storage_GO.Migrations
                 name: "UserProfiles");
 
             migrationBuilder.DropTable(
+                name: "UserRecipeRequests");
+
+            migrationBuilder.DropTable(
                 name: "UserSessions");
 
             migrationBuilder.DropTable(
                 name: "Wallets");
+
+            migrationBuilder.DropTable(
+                name: "FinalDishes");
 
             migrationBuilder.DropTable(
                 name: "Recipes");
