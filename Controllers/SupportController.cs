@@ -77,7 +77,12 @@ namespace Cold_Storage_GO.Controllers
 
 
         [HttpGet("GetTickets")]
-        public async Task<IActionResult> GetTickets()
+        public async Task<IActionResult> GetTickets(
+    [FromQuery] string status = null,
+    [FromQuery] string priority = null,
+    [FromQuery] string category = null,
+    [FromQuery] string subject = null,
+    [FromQuery] Guid? ticketId = null) // Added ticketId filter
         {
             // Retrieve UserSessionId from the session using UserSessionId from headers
             var userSessionId = HttpContext.Request.Cookies["SessionId"];
@@ -91,9 +96,39 @@ namespace Cold_Storage_GO.Controllers
                 return Unauthorized("Invalid or expired session.");
             }
 
-            // Retrieve all tickets for the user associated with the session UserId
-            var tickets = await _context.SupportTickets
-                .Where(t => t.UserId == session.UserId) // Filter tickets by UserId from session
+            // Start the query to fetch tickets and apply filters for the logged-in user only
+            var query = _context.SupportTickets
+                .Where(t => t.UserId == session.UserId); // Ensure the user can only access their own tickets
+
+            // Apply filters if they are provided
+            if (!string.IsNullOrEmpty(status))
+            {
+                query = query.Where(t => t.Status == status);
+            }
+
+            if (!string.IsNullOrEmpty(priority))
+            {
+                query = query.Where(t => t.Priority == priority);
+            }
+
+            if (!string.IsNullOrEmpty(category))
+            {
+                query = query.Where(t => t.Category == category);
+            }
+
+            if (!string.IsNullOrEmpty(subject))
+            {
+                query = query.Where(t => t.Subject.Contains(subject));
+            }
+
+            // Apply the ticketId filter if provided
+            if (ticketId.HasValue)
+            {
+                query = query.Where(t => t.TicketId == ticketId.Value);
+            }
+
+            // Retrieve the filtered list of tickets
+            var tickets = await query
                 .Include(t => t.Images) // Include related images
                 .ToListAsync();
 
@@ -106,7 +141,6 @@ namespace Cold_Storage_GO.Controllers
             // Iterate through the tickets and handle possible NULL values in the response
             var ticketResponses = tickets.Select(ticket =>
             {
-                // Include ticket information
                 var response = new
                 {
                     ticket.TicketId,
@@ -114,25 +148,26 @@ namespace Cold_Storage_GO.Controllers
                     ticket.Subject,
                     ticket.Category,
                     ticket.Details,
+                    ticket.StaffId,
                     Priority = ticket.Priority ?? "Unassigned",
                     Status = ticket.Status ?? "Unassigned",
                     CreatedAt = ticket.CreatedAt,
                     ResolvedAt = ticket.ResolvedAt, // Always included, null if unresolved
+
                     Images = ticket.Images.Select(img => new
                     {
                         img.ImageId,
                         img.UploadedAt,
                         ImageData = img.ImageData.Length > 0 ? Convert.ToBase64String(img.ImageData) : null // Optionally convert to base64 string
-                    }).ToList() // Include images as base64 (optional, you can change this to store a path instead)
+                    }).ToList() // Include images as base64 (optional)
                 };
-
-                
 
                 return response;
             }).ToList();
 
             return Ok(ticketResponses);
         }
+
 
 
         // Request model for opening a ticket
