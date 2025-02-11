@@ -319,5 +319,80 @@ namespace Cold_Storage_GO.Controllers
 
             return Ok(freezes);
         }
+
+        [HttpGet("recommendation/{userId}")]
+        public async Task<IActionResult> GetSmartRecommendation(Guid userId)
+        {
+            var activeSubscription = await _context.Subscriptions
+                .FirstOrDefaultAsync(s => s.UserId == userId && s.Status == "Active");
+
+            if (activeSubscription == null)
+            {
+                return NotFound(new { message = "No active subscription found." });
+            }
+
+            // Get past subscriptions (excluding the current one)
+            var subscriptionHistory = await _context.Subscriptions
+                .Where(s => s.UserId == userId && s.SubscriptionId != activeSubscription.SubscriptionId)
+                .OrderByDescending(s => s.EndDate)
+                .ToListAsync();
+
+            var freezeCount = await _context.SubscriptionFreezeHistories
+                .Where(f => f.SubscriptionId == activeSubscription.SubscriptionId)
+                .CountAsync();
+
+            // ✅ FIX: Handle nullable bool? properly
+            bool alwaysRenews = subscriptionHistory.Count() >= 3 &&
+                                subscriptionHistory.All(s => s.AutoRenewal.GetValueOrDefault());
+
+            bool frequentCancellations = subscriptionHistory.Count(s => s.Status == "Canceled") >= 2;
+
+            // 🔹 New: Detect plan switching behavior
+            var lastThreePlans = subscriptionHistory
+                .Select(s => s.SubscriptionType)
+                .Distinct()
+                .Take(3)
+                .ToList();
+
+            bool frequentPlanSwitching = lastThreePlans.Count == 3; // 3 different plans in a row
+
+            var allPlans = new List<string> { "Weekly", "Monthly", "Annual", "Pay-Per-Use" }; // Define available plans
+            var untriedPlans = allPlans.Except(lastThreePlans).ToList();
+
+            string recommendedPlan = activeSubscription.SubscriptionType;
+            string reason = "No changes needed.";
+
+            // ✅ Prioritize the strongest recommendation first
+            if (freezeCount >= 3)
+            {
+                recommendedPlan = "Weekly";
+                reason = "You froze your Monthly plan 3+ times. A Weekly plan may offer better flexibility.";
+            }
+            else if (alwaysRenews)
+            {
+                recommendedPlan = "Monthly";
+                reason = "You've consistently renewed. A Monthly plan may save you money.";
+            }
+            else if (frequentCancellations)
+            {
+                recommendedPlan = "Pay-Per-Use";
+                reason = "You've canceled 2+ times. A Pay-Per-Use plan may better suit your needs.";
+            }
+            else if (frequentPlanSwitching && untriedPlans.Count > 0)
+            {
+                recommendedPlan = string.Join(", ", untriedPlans);
+                reason = "You frequently switch plans! Try these new options.";
+            }
+
+            return Ok(new
+            {
+                recommendedPlan,
+                reason
+            });
+        }
+
+
+
+
     }
 }
