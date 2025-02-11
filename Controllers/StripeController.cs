@@ -56,8 +56,8 @@ namespace Cold_Storage_GO.Controllers
             }
         },
                 Mode = "payment",
-                SuccessUrl = "http://localhost:3000/subscription-success",
-                CancelUrl = "http://localhost:3000/subscription-choice",
+                SuccessUrl = "http://localhost:3005/subscription-success",
+                CancelUrl = "http://localhost:3005/subscription-choice",
 
                 // ✅ Fixed: Adding Metadata Properly
                 Metadata = new Dictionary<string, string>
@@ -134,11 +134,6 @@ namespace Cold_Storage_GO.Controllers
             }
         }
 
-
-
-
-
     }
 
 }
-

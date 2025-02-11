@@ -147,7 +147,7 @@ namespace Cold_Storage_GO.Controllers
 
     public class MealKitCreateRequest
     {
-        [Required(ErrorMessage = "DishIds are required.")]
+        [Required(ErrorMessage = "At least one DishId is required.")]
         public List<Guid> DishIds { get; set; } = new();
 
         [Required(ErrorMessage = "Name is required.")]
@@ -170,6 +170,7 @@ namespace Cold_Storage_GO.Controllers
 
     public class MealKitUpdateRequest
     {
+        [Required(ErrorMessage = "At least one DishId is required.")]
         public List<Guid> DishIds { get; set; } = new();
         public string Name { get; set; }
         public int Price { get; set; }

@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Cold_Storage_GO.Models;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Cold_Storage_GO.Controllers
 {
@@ -134,9 +135,14 @@ namespace Cold_Storage_GO.Controllers
 
         public class CartItemRequest
         {
+            [JsonPropertyName("mealKitId")]
             public Guid MealKitId { get; set; }
+
+            [JsonPropertyName("quantity")]
             public int Quantity { get; set; }
-            public int Price {  get; set; }
+
+            [JsonPropertyName("price")]
+            public int Price { get; set; }
         }
 
     }

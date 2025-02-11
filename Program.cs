@@ -4,6 +4,8 @@ using Cold_Storage_GO;
 using Cold_Storage_GO.Services;
 using Cold_Storage_GO.Middleware;
 using Cold_Storage_GO.Models;
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,7 +14,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:3000") // Allow React app
+        policy.WithOrigins("http://localhost:3005") // Allow React app
               .AllowAnyHeader()                   // Allow any headers
               .AllowAnyMethod()                   // Allow any HTTP methods
               .AllowCredentials();                // Allow cookies/credentials
@@ -26,8 +28,13 @@ builder.Services.AddControllers();
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
 
 // Register services
-builder.Services.AddDbContext<DbContexts>();
-builder.Services.AddScoped<OrderService>();
+
+
+// In Program.cs (or Startup.cs)
+builder.Services.AddDbContext<DbContexts>(options =>
+    options.UseMySQL(builder.Configuration.GetConnectionString("MyConnection")));
+
+//builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<DeliveryService>();
 builder.Services.AddSingleton<EmailService>();
 builder.Services.AddScoped<SubscriptionService>();
