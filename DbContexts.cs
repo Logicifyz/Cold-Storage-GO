@@ -35,13 +35,9 @@ namespace Cold_Storage_GO
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Delivery> Deliveries { get; set; }
-<<<<<<< HEAD
         public DbSet<SubscriptionFreezeHistory> SubscriptionFreezeHistories { get; set; }
         public DbSet<ScheduledFreeze> ScheduledFreezes { get; set; }
 
-=======
-        public DbSet<ChatMessage> ChatMessages { get; set; }
->>>>>>> AccountManagementandHelpCentreSupportV3
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

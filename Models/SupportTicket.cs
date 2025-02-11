@@ -38,8 +38,6 @@ namespace Cold_Storage_GO.Models
         public DateTime? ResolvedAt { get; set; } // Nullable for unresolved tickets
 
         public virtual ICollection<TicketImage> Images { get; set; } = new List<TicketImage>();
-        public ICollection<ChatMessage> ChatMessages { get; set; }
-
 
     }
 }
