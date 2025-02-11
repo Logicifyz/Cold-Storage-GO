@@ -13,8 +13,6 @@ namespace Cold_Storage_GO.Controllers
     {
         private readonly SubscriptionService _subscriptionService;
         private readonly DbContexts _context;  // ✅ Ensure the DbContext is defined here
-
-
         public SubscriptionsController(SubscriptionService subscriptionService, DbContexts context)
         {
             _subscriptionService = subscriptionService;
@@ -22,16 +20,30 @@ namespace Cold_Storage_GO.Controllers
         }
 
         [HttpGet("user")]
-        public async Task<IActionResult> GetUserSubscription(Guid userId)
+        public async Task<IActionResult> GetUserSubscription([FromQuery] Guid userId)
         {
-            var subscription = await _subscriptionService.GetSubscriptionByUserIdAsync(userId);
+            var subscription = await _context.Subscriptions
+        .Where(s => s.UserId == userId && s.Status != "Canceled") // 🔥 Exclude canceled subscriptions
+        .FirstOrDefaultAsync();
+
             if (subscription == null)
+                return NotFound("Subscription not found.");
+
+            // Get all freeze schedules for this subscription
+            var today = DateTime.UtcNow.Date;
+            bool isCurrentlyFrozen = await _context.SubscriptionFreezeHistories
+                .AnyAsync(f => f.SubscriptionId == subscription.SubscriptionId &&
+                               f.FreezeStartDate <= today && f.FreezeEndDate >= today);
+
+            // Update `isFrozen` dynamically if needed
+            if (subscription.IsFrozen != isCurrentlyFrozen)
             {
-                return NotFound("No subscription found for the given user.");
+                subscription.IsFrozen = isCurrentlyFrozen;
+                await _context.SaveChangesAsync();
             }
+
             return Ok(subscription);
         }
-
 
         // ✅ Updated: Now includes SubscriptionChoice
         [HttpPost]
@@ -63,7 +75,6 @@ namespace Cold_Storage_GO.Controllers
                 return BadRequest($"Error: {ex.Message}");
             }
         }
-
 
         // ✅ Freeze Subscription
         [HttpPut("toggle-freeze/{subscriptionId}")]
@@ -97,15 +108,8 @@ namespace Cold_Storage_GO.Controllers
         {
             try
             {
-                var subscription = await _subscriptionService.GetSubscriptionByIdAsync(subscriptionId);
-                if (subscription == null)
-                {
-                    return NotFound("Subscription not found.");
-                }
 
-                // ✅ Update status to canceled instead of deleting
-                subscription.Status = "Canceled";
-                await _subscriptionService.UpdateSubscriptionAsync(subscription);
+                await _subscriptionService.CancelSubscriptionAsync(subscriptionId); // ✅ Call the correct service method
 
                 return Ok("Subscription has been successfully canceled.");
             }
@@ -194,6 +198,7 @@ namespace Cold_Storage_GO.Controllers
                 subscription.SubscriptionChoice
             });
         }
+
         [HttpGet("active/{userId}")]
         public async Task<IActionResult> UserHasActiveSubscription(Guid userId)
         {
@@ -250,6 +255,69 @@ namespace Cold_Storage_GO.Controllers
             return Ok(subscriptions);
         }
 
+        // ✅ Schedule a freeze for a future date
+        [HttpPost("schedule-freeze/{subscriptionId}")]
+        public async Task<IActionResult> ScheduleFreeze(Guid subscriptionId, [FromBody] ScheduleFreezeRequest request)
+        {
+            var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
+            if (subscription == null) return NotFound("Subscription not found.");
 
+            if (request.StartDate >= request.EndDate)
+                return BadRequest("End date must be after start date.");
+
+            // ✅ Check if an overlapping freeze already exists
+            var overlappingFreeze = await _context.SubscriptionFreezeHistories
+                .AnyAsync(f => f.SubscriptionId == subscriptionId &&
+                               ((request.StartDate >= f.FreezeStartDate && request.StartDate <= f.FreezeEndDate) ||  // Starts inside an existing freeze
+                                (request.EndDate >= f.FreezeStartDate && request.EndDate <= f.FreezeEndDate) ||      // Ends inside an existing freeze
+                                (request.StartDate <= f.FreezeStartDate && request.EndDate >= f.FreezeEndDate)));     // Completely covers an existing freeze
+
+            if (overlappingFreeze)
+                return BadRequest("Freeze period overlaps with an existing scheduled freeze.");
+
+            // ✅ Add the new freeze period
+            var freezeHistory = new SubscriptionFreezeHistory
+            {
+                SubscriptionId = subscriptionId,
+                FreezeStartDate = request.StartDate,
+                FreezeEndDate = request.EndDate
+            };
+
+            _context.SubscriptionFreezeHistories.Add(freezeHistory);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Freeze scheduled successfully.", startDate = request.StartDate, endDate = request.EndDate });
+        }
+
+        // ✅ Cancel a scheduled freeze
+        [HttpDelete("cancel-scheduled-freeze/{subscriptionId}")]
+        public async Task<IActionResult> CancelScheduledFreeze(Guid subscriptionId)
+        {
+            try
+            {
+                await _subscriptionService.CancelScheduledFreezeAsync(subscriptionId);
+                return Ok("Scheduled freeze has been canceled.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error canceling scheduled freeze: {ex.Message}");
+            }
+        }
+
+        [HttpGet("scheduled-freezes/{subscriptionId}")]
+        public async Task<IActionResult> GetScheduledFreezes(Guid subscriptionId)
+        {
+            var freezes = await _context.SubscriptionFreezeHistories
+                .Where(f => f.SubscriptionId == subscriptionId && f.FreezeEndDate >= DateTime.UtcNow.Date)
+                .OrderBy(f => f.FreezeStartDate)
+                .Select(f => new
+                {
+                    StartDate = f.FreezeStartDate,
+                    EndDate = f.FreezeEndDate
+                })
+                .ToListAsync();
+
+            return Ok(freezes);
+        }
     }
 }

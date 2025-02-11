@@ -35,6 +35,8 @@ namespace Cold_Storage_GO
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Delivery> Deliveries { get; set; }
+        public DbSet<SubscriptionFreezeHistory> SubscriptionFreezeHistories { get; set; }
+        public DbSet<ScheduledFreeze> ScheduledFreezes { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -16,7 +16,8 @@ public class Subscription
     public decimal Price { get; set; }
     public string Status { get; set; }  // Active, Canceled, Expired
     public User User { get; set; }
-
-
+    public DateTime? ScheduledFreezeStartDate { get; set; }
+    public DateTime? ScheduledFreezeEndDate { get; set; }
+    public bool IsScheduledForFreeze { get; set; } = false;
 }
 
