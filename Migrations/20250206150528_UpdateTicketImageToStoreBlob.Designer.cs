@@ -11,13 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cold_Storage_GO.Migrations
 {
     [DbContext(typeof(DbContexts))]
-<<<<<<<< HEAD:Migrations/20250114050358_initialcreate.Designer.cs
-    [Migration("20250114050358_initialcreate")]
-    partial class initialcreate
-========
-    [Migration("20250114163711_resetDBAddDeleteCascading")]
-    partial class resetDBAddDeleteCascading
->>>>>>>> AccountManagementandHelpCentreSupportV3:Migrations/20250114163711_resetDBAddDeleteCascading.Designer.cs
+    [Migration("20250206150528_UpdateTicketImageToStoreBlob")]
+    partial class UpdateTicketImageToStoreBlob
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -196,12 +191,25 @@ namespace Cold_Storage_GO.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("Ingredients")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
                     b.Property<string>("Instructions")
                         .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("varchar(300)");
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<Guid?>("MealKitId")
+                        .HasColumnType("char(36)");
 
                     b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Tags")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
@@ -240,29 +248,22 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime");
 
-                    b.Property<string>("DishIdsSerialized")
-                        .HasColumnType("longtext")
-                        .HasColumnName("DishIds");
+                    b.Property<Guid>("DishId")
+                        .HasColumnType("char(36)");
 
                     b.Property<DateTime>("ExpiryDate")
                         .HasColumnType("datetime");
-
-                    b.Property<string>("Ingredients")
-                        .HasColumnType("longtext");
 
                     b.Property<byte[]>("ListingImage")
                         .HasColumnType("longblob");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<int>("Price")
                         .HasColumnType("int");
-
-                    b.Property<string>("TagsSerialized")
-                        .HasColumnType("longtext")
-                        .HasColumnName("Tags");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime");
@@ -290,6 +291,10 @@ namespace Cold_Storage_GO.Migrations
 
                     b.Property<int>("DietaryFibre")
                         .HasColumnType("int");
+
+                    b.Property<string>("Ingredients")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<int>("Protein")
                         .HasColumnType("int");
@@ -540,7 +545,7 @@ namespace Cold_Storage_GO.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<bool?>("AutoRenewal")
+                    b.Property<bool>("AutoRenewal")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("DeliveryTimeSlot")
@@ -553,24 +558,14 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<int>("Frequency")
                         .HasColumnType("int");
 
-                    b.Property<bool?>("IsFrozen")
+                    b.Property<bool>("IsFrozen")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<Guid>("MealKitId")
                         .HasColumnType("char(36)");
 
-                    b.Property<decimal>("Price")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime(6)");
-
-                    b.Property<string>("StripeSessionId")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("SubscriptionChoice")
-                        .IsRequired()
-                        .HasColumnType("longtext");
 
                     b.Property<string>("SubscriptionType")
                         .IsRequired()
@@ -629,6 +624,29 @@ namespace Cold_Storage_GO.Migrations
                     b.HasKey("TicketId");
 
                     b.ToTable("SupportTickets");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.TicketImage", b =>
+                {
+                    b.Property<Guid>("ImageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<byte[]>("ImageData")
+                        .IsRequired()
+                        .HasColumnType("longblob");
+
+                    b.Property<Guid>("TicketId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("ImageId");
+
+                    b.HasIndex("TicketId");
+
+                    b.ToTable("TicketImage");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.User", b =>
@@ -820,6 +838,17 @@ namespace Cold_Storage_GO.Migrations
                     b.Navigation("Dish");
                 });
 
+            modelBuilder.Entity("Cold_Storage_GO.Models.TicketImage", b =>
+                {
+                    b.HasOne("Cold_Storage_GO.Models.SupportTicket", "SupportTicket")
+                        .WithMany("Images")
+                        .HasForeignKey("TicketId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SupportTicket");
+                });
+
             modelBuilder.Entity("Cold_Storage_GO.Models.UserAdministration", b =>
                 {
                     b.HasOne("Cold_Storage_GO.Models.User", "User")
@@ -845,6 +874,11 @@ namespace Cold_Storage_GO.Migrations
             modelBuilder.Entity("Cold_Storage_GO.Models.Comment", b =>
                 {
                     b.Navigation("Replies");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.SupportTicket", b =>
+                {
+                    b.Navigation("Images");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.User", b =>

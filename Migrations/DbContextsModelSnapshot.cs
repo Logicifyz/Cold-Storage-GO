@@ -623,6 +623,29 @@ namespace Cold_Storage_GO.Migrations
                     b.ToTable("SupportTickets");
                 });
 
+            modelBuilder.Entity("Cold_Storage_GO.Models.TicketImage", b =>
+                {
+                    b.Property<Guid>("ImageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<byte[]>("ImageData")
+                        .IsRequired()
+                        .HasColumnType("longblob");
+
+                    b.Property<Guid>("TicketId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("ImageId");
+
+                    b.HasIndex("TicketId");
+
+                    b.ToTable("TicketImage");
+                });
+
             modelBuilder.Entity("Cold_Storage_GO.Models.User", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -787,13 +810,13 @@ namespace Cold_Storage_GO.Migrations
                     b.HasOne("Cold_Storage_GO.Models.User", "Followed")
                         .WithMany("Followers")
                         .HasForeignKey("FollowedId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("Cold_Storage_GO.Models.User", "Follower")
                         .WithMany("Following")
                         .HasForeignKey("FollowerId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Followed");
@@ -810,6 +833,17 @@ namespace Cold_Storage_GO.Migrations
                         .IsRequired();
 
                     b.Navigation("Dish");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.TicketImage", b =>
+                {
+                    b.HasOne("Cold_Storage_GO.Models.SupportTicket", "SupportTicket")
+                        .WithMany("Images")
+                        .HasForeignKey("TicketId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SupportTicket");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.UserAdministration", b =>
@@ -837,6 +871,11 @@ namespace Cold_Storage_GO.Migrations
             modelBuilder.Entity("Cold_Storage_GO.Models.Comment", b =>
                 {
                     b.Navigation("Replies");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.SupportTicket", b =>
+                {
+                    b.Navigation("Images");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.User", b =>
