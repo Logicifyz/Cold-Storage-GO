@@ -7,15 +7,11 @@ using MySql.EntityFrameworkCore.Metadata;
 namespace Cold_Storage_GO.Migrations
 {
     /// <inheritdoc />
-<<<<<<< HEAD:Migrations/20250211163600_babyplease.cs
-    public partial class babyplease : Migration
-=======
 <<<<<<<< HEAD:Migrations/20250114050358_initialcreate.cs
     public partial class initialcreate : Migration
 ========
     public partial class resetDBAddDeleteCascading : Migration
 >>>>>>>> AccountManagementandHelpCentreSupportV3:Migrations/20250114163711_resetDBAddDeleteCascading.cs
->>>>>>> a844d81e67b761d49274576d4070abdfc12fa0c3:Migrations/20250114050358_initialcreate.cs
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -126,7 +122,7 @@ namespace Cold_Storage_GO.Migrations
                     DishId = table.Column<Guid>(type: "char(36)", nullable: false),
                     UserId = table.Column<Guid>(type: "char(36)", nullable: true),
                     Name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false),
-                    Instructions = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: false)
+                    Instructions = table.Column<string>(type: "varchar(300)", maxLength: 300, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -160,24 +156,22 @@ namespace Cold_Storage_GO.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "orders",
+                name: "Orders",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false),
-                    OrderType = table.Column<string>(type: "longtext", nullable: false),
+                    OrderId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    SubscriptionId = table.Column<Guid>(type: "char(36)", nullable: false),
                     UserId = table.Column<Guid>(type: "char(36)", nullable: false),
-                    DeliveryAddress = table.Column<string>(type: "longtext", nullable: false),
-                    OrderStatus = table.Column<string>(type: "longtext", nullable: false),
-                    OrderTime = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    ShipTime = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    Subtotal = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    ShippingCost = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Tax = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    TotalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
+                    MealKitId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    OrderDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    TotalPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    PromotionCode = table.Column<string>(type: "longtext", nullable: false),
+                    OrderNotes = table.Column<string>(type: "longtext", nullable: false),
+                    OrderStatus = table.Column<string>(type: "longtext", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_orders", x => x.Id);
+                    table.PrimaryKey("PK_Orders", x => x.OrderId);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
@@ -271,6 +265,30 @@ namespace Cold_Storage_GO.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_StaffSessions", x => x.StaffSessionId);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "Subscriptions",
+                columns: table => new
+                {
+                    SubscriptionId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    MealKitId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    Frequency = table.Column<int>(type: "int", nullable: false),
+                    StartDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    EndDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    AutoRenewal = table.Column<bool>(type: "tinyint(1)", nullable: true),
+                    DeliveryTimeSlot = table.Column<string>(type: "longtext", nullable: false),
+                    SubscriptionType = table.Column<string>(type: "longtext", nullable: false),
+                    IsFrozen = table.Column<bool>(type: "tinyint(1)", nullable: true),
+                    StripeSessionId = table.Column<string>(type: "longtext", nullable: true),
+                    SubscriptionChoice = table.Column<string>(type: "longtext", nullable: false),
+                    Price = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Subscriptions", x => x.SubscriptionId);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
@@ -373,35 +391,6 @@ namespace Cold_Storage_GO.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "orderitems",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
-                    OrderId = table.Column<Guid>(type: "char(36)", nullable: false),
-                    MealKitId = table.Column<Guid>(type: "char(36)", nullable: false),
-                    Quantity = table.Column<int>(type: "int", nullable: false),
-                    UnitPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_orderitems", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_orderitems_MealKits_MealKitId",
-                        column: x => x.MealKitId,
-                        principalTable: "MealKits",
-                        principalColumn: "MealKitId",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_orderitems_orders_OrderId",
-                        column: x => x.OrderId,
-                        principalTable: "orders",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySQL:Charset", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "Follows",
                 columns: table => new
                 {
@@ -423,36 +412,6 @@ namespace Cold_Storage_GO.Migrations
                         principalTable: "Users",
                         principalColumn: "UserId",
                         onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySQL:Charset", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "Subscriptions",
-                columns: table => new
-                {
-                    SubscriptionId = table.Column<Guid>(type: "char(36)", nullable: false),
-                    UserId = table.Column<Guid>(type: "char(36)", nullable: false),
-                    Frequency = table.Column<int>(type: "int", nullable: false),
-                    StartDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    EndDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    AutoRenewal = table.Column<bool>(type: "tinyint(1)", nullable: true, defaultValue: false),
-                    DeliveryTimeSlot = table.Column<string>(type: "longtext", nullable: false),
-                    SubscriptionType = table.Column<string>(type: "longtext", nullable: false),
-                    IsFrozen = table.Column<bool>(type: "tinyint(1)", nullable: true, defaultValue: false),
-                    StripeSessionId = table.Column<string>(type: "longtext", nullable: true),
-                    SubscriptionChoice = table.Column<string>(type: "longtext", nullable: false),
-                    Price = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Status = table.Column<string>(type: "varchar(255)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Subscriptions", x => x.SubscriptionId);
-                    table.ForeignKey(
-                        name: "FK_Subscriptions_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "UserId",
-                        onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
@@ -487,10 +446,10 @@ namespace Cold_Storage_GO.Migrations
                 {
                     ProfileId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
-                    FullName = table.Column<string>(type: "longtext", nullable: true),
-                    PhoneNumber = table.Column<string>(type: "longtext", nullable: true),
-                    StreetAddress = table.Column<string>(type: "longtext", nullable: true),
-                    PostalCode = table.Column<string>(type: "longtext", nullable: true),
+                    FullName = table.Column<string>(type: "longtext", nullable: false),
+                    PhoneNumber = table.Column<string>(type: "longtext", nullable: false),
+                    StreetAddress = table.Column<string>(type: "longtext", nullable: false),
+                    PostalCode = table.Column<string>(type: "longtext", nullable: false),
                     UserId = table.Column<Guid>(type: "char(36)", nullable: false),
                     SubscriptionStatus = table.Column<string>(type: "longtext", nullable: false),
                     ProfilePicture = table.Column<byte[]>(type: "longblob", nullable: true)
@@ -516,26 +475,6 @@ namespace Cold_Storage_GO.Migrations
                 name: "IX_Follows_FollowedId",
                 table: "Follows",
                 column: "FollowedId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_orderitems_MealKitId",
-                table: "orderitems",
-                column: "MealKitId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_orderitems_OrderId",
-                table: "orderitems",
-                column: "OrderId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Subscriptions_Status",
-                table: "Subscriptions",
-                column: "Status");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Subscriptions_UserId",
-                table: "Subscriptions",
-                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserProfiles_UserId",
@@ -566,10 +505,13 @@ namespace Cold_Storage_GO.Migrations
                 name: "Follows");
 
             migrationBuilder.DropTable(
+                name: "MealKits");
+
+            migrationBuilder.DropTable(
                 name: "NutritionalFacts");
 
             migrationBuilder.DropTable(
-                name: "orderitems");
+                name: "Orders");
 
             migrationBuilder.DropTable(
                 name: "Recipes");
@@ -606,12 +548,6 @@ namespace Cold_Storage_GO.Migrations
 
             migrationBuilder.DropTable(
                 name: "Dishes");
-
-            migrationBuilder.DropTable(
-                name: "MealKits");
-
-            migrationBuilder.DropTable(
-                name: "orders");
 
             migrationBuilder.DropTable(
                 name: "Users");

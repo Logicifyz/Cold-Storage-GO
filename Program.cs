@@ -4,11 +4,16 @@ using Cold_Storage_GO;
 using Cold_Storage_GO.Services;
 using Cold_Storage_GO.Middleware;
 using Cold_Storage_GO.Models;
-using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
+using Cold_Storage_GO.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
+
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
+var clientId = builder.Configuration["OAuth:ClientId"];
+var clientSecret = builder.Configuration["OAuth:ClientSecret"];
 // Add services to the container
 builder.Services.AddCors(options =>
 {
@@ -39,6 +44,7 @@ builder.Services.AddScoped<DeliveryService>();
 builder.Services.AddSingleton<EmailService>();
 builder.Services.AddScoped<SubscriptionService>();
 builder.Logging.AddConsole();
+builder.Services.AddSingleton<GoogleAuthService>();
 
 // Swagger configuration with security definition for session tokens
 builder.Services.AddEndpointsApiExplorer();
@@ -69,9 +75,21 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Authentication setup
-builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
-   .AddNegotiate();
+// Add authentication and authorization
+// ✅ Authentication and Authorization Setup
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
+})
+.AddCookie()
+.AddGoogle(options =>
+{
+    options.ClientId = clientId;  // Now using configuration
+    options.ClientSecret = clientSecret;  // Now using configuration
+    options.CallbackPath = new PathString("/signin-google");
+});
 
 builder.Services.AddAuthorization(options =>
 {
