@@ -4,8 +4,8 @@ using Cold_Storage_GO;
 using Cold_Storage_GO.Services;
 using Cold_Storage_GO.Middleware;
 using Cold_Storage_GO.Models;
-using Microsoft.AspNetCore.Authenticatiousing Cold_Storage_GO.Services;
-using Microsoft.EntityFrameworkCore;n.Cookies;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.EntityFrameworkCore;
 using MySqlX.XDevAPI;
@@ -17,6 +17,7 @@ using System.Text.Json;
 using Cold_Storage_GO.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Net.Sockets;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 
 var builder = WebApplication.CreateBuilder(args);
