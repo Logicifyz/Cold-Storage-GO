@@ -90,6 +90,15 @@ namespace Cold_Storage_GO.Controllers
             _dbContext.Orders.Add(order);
             await _dbContext.SaveChangesAsync();
 
+
+            var orderEvent = new OrderEvent
+            {
+                UserId = userSession.UserId,
+                OrderId = order.Id,
+                TotalAmount = totalAmount,
+                ItemCount = orderItems.Sum(oi => oi.Quantity)
+            };
+            _dbContext.OrderEvents.Add(orderEvent);
             // Clear the cart after order placement
             userSession.Data = "[]";
             _dbContext.UserSessions.Update(userSession);

@@ -105,7 +105,17 @@ namespace Cold_Storage_GO.Controllers
 
                 // ✅ Update status to canceled instead of deleting
                 subscription.Status = "Canceled";
+                var subscriptionEvent = new SubscriptionEvent
+                {
+                    SubscriptionId = subscription.SubscriptionId,
+                    UserId = subscription.UserId,
+                    EventType = "Canceled",
+                    Details = "Subscription canceled by user request."
+                };
+
+                _context.SubscriptionEvents.Add(subscriptionEvent);
                 await _subscriptionService.UpdateSubscriptionAsync(subscription);
+
 
                 return Ok("Subscription has been successfully canceled.");
             }

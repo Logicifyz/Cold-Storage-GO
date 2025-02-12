@@ -11,13 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cold_Storage_GO.Migrations
 {
     [DbContext(typeof(DbContexts))]
-<<<<<<<< HEAD:Migrations/20250114050358_initialcreate.Designer.cs
-    [Migration("20250114050358_initialcreate")]
-    partial class initialcreate
-========
-    [Migration("20250114163711_resetDBAddDeleteCascading")]
-    partial class resetDBAddDeleteCascading
->>>>>>>> AccountManagementandHelpCentreSupportV3:Migrations/20250114163711_resetDBAddDeleteCascading.Designer.cs
+    [Migration("20250212003042_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -85,6 +80,29 @@ namespace Cold_Storage_GO.Migrations
                     b.HasKey("ArticleId");
 
                     b.ToTable("Articles");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.CartEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("EventTime")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("MealKitId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CartEvents");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.Comment", b =>
@@ -198,8 +216,8 @@ namespace Cold_Storage_GO.Migrations
 
                     b.Property<string>("Instructions")
                         .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("varchar(300)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -317,17 +335,11 @@ namespace Cold_Storage_GO.Migrations
 
             modelBuilder.Entity("Cold_Storage_GO.Models.Order", b =>
                 {
-                    b.Property<Guid>("OrderId")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<Guid>("MealKitId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime>("OrderDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("OrderNotes")
+                    b.Property<string>("DeliveryAddress")
                         .IsRequired()
                         .HasColumnType("longtext");
 
@@ -335,22 +347,87 @@ namespace Cold_Storage_GO.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<string>("PromotionCode")
+                    b.Property<DateTime>("OrderTime")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("OrderType")
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<Guid>("SubscriptionId")
-                        .HasColumnType("char(36)");
+                    b.Property<DateTime?>("ShipTime")
+                        .HasColumnType("datetime(6)");
 
-                    b.Property<decimal>("TotalPrice")
+                    b.Property<decimal>("ShippingCost")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Tax")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalAmount")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");
 
-                    b.HasKey("OrderId");
+                    b.HasKey("Id");
 
-                    b.ToTable("Orders");
+                    b.ToTable("orders");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.OrderEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("EventTime")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("ItemCount")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("OrderEvents");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.OrderItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("MealKitId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MealKitId");
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("orderitems");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.Recipe", b =>
@@ -541,7 +618,8 @@ namespace Cold_Storage_GO.Migrations
                         .HasColumnType("char(36)");
 
                     b.Property<bool?>("AutoRenewal")
-                        .HasColumnType("tinyint(1)");
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("DeliveryTimeSlot")
                         .IsRequired()
@@ -554,16 +632,18 @@ namespace Cold_Storage_GO.Migrations
                         .HasColumnType("int");
 
                     b.Property<bool?>("IsFrozen")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<Guid>("MealKitId")
-                        .HasColumnType("char(36)");
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
 
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("StripeSessionId")
                         .HasColumnType("longtext");
@@ -580,6 +660,10 @@ namespace Cold_Storage_GO.Migrations
                         .HasColumnType("char(36)");
 
                     b.HasKey("SubscriptionId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("Subscriptions");
                 });
@@ -629,6 +713,29 @@ namespace Cold_Storage_GO.Migrations
                     b.HasKey("TicketId");
 
                     b.ToTable("SupportTickets");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.TicketImage", b =>
+                {
+                    b.Property<Guid>("ImageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<byte[]>("ImageData")
+                        .IsRequired()
+                        .HasColumnType("longblob");
+
+                    b.Property<Guid>("TicketId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("ImageId");
+
+                    b.HasIndex("TicketId");
+
+                    b.ToTable("TicketImage");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.User", b =>
@@ -820,6 +927,47 @@ namespace Cold_Storage_GO.Migrations
                     b.Navigation("Dish");
                 });
 
+            modelBuilder.Entity("Cold_Storage_GO.Models.OrderItem", b =>
+                {
+                    b.HasOne("Cold_Storage_GO.Models.MealKit", "MealKit")
+                        .WithMany()
+                        .HasForeignKey("MealKitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Cold_Storage_GO.Models.Order", "Order")
+                        .WithMany("OrderItems")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MealKit");
+
+                    b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.Subscription", b =>
+                {
+                    b.HasOne("Cold_Storage_GO.Models.User", "User")
+                        .WithMany("Subscriptions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.TicketImage", b =>
+                {
+                    b.HasOne("Cold_Storage_GO.Models.SupportTicket", "SupportTicket")
+                        .WithMany("Images")
+                        .HasForeignKey("TicketId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SupportTicket");
+                });
+
             modelBuilder.Entity("Cold_Storage_GO.Models.UserAdministration", b =>
                 {
                     b.HasOne("Cold_Storage_GO.Models.User", "User")
@@ -847,11 +995,23 @@ namespace Cold_Storage_GO.Migrations
                     b.Navigation("Replies");
                 });
 
+            modelBuilder.Entity("Cold_Storage_GO.Models.Order", b =>
+                {
+                    b.Navigation("OrderItems");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.SupportTicket", b =>
+                {
+                    b.Navigation("Images");
+                });
+
             modelBuilder.Entity("Cold_Storage_GO.Models.User", b =>
                 {
                     b.Navigation("Followers");
 
                     b.Navigation("Following");
+
+                    b.Navigation("Subscriptions");
 
                     b.Navigation("UserAdministration")
                         .IsRequired();

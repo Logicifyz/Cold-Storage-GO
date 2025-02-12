@@ -35,6 +35,11 @@ namespace Cold_Storage_GO
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Delivery> Deliveries { get; set; }
+        public DbSet<CartEvent> CartEvents { get; set; }
+        public DbSet<OrderEvent> OrderEvents { get; set; }
+        public DbSet<RewardRedemptionEvent> RewardRedemptionEvents { get; set; }
+        public DbSet<SupportTicketEvent> SupportTicketEvents { get; set; }
+        public DbSet<SubscriptionEvent> SubscriptionEvents { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
