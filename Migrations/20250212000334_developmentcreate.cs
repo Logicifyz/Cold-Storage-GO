@@ -7,15 +7,7 @@ using MySql.EntityFrameworkCore.Metadata;
 namespace Cold_Storage_GO.Migrations
 {
     /// <inheritdoc />
-<<<<<<< HEAD:Migrations/20250211163600_babyplease.cs
-    public partial class babyplease : Migration
-=======
-<<<<<<<< HEAD:Migrations/20250114050358_initialcreate.cs
-    public partial class initialcreate : Migration
-========
-    public partial class resetDBAddDeleteCascading : Migration
->>>>>>>> AccountManagementandHelpCentreSupportV3:Migrations/20250114163711_resetDBAddDeleteCascading.cs
->>>>>>> a844d81e67b761d49274576d4070abdfc12fa0c3:Migrations/20250114050358_initialcreate.cs
+    public partial class developmentcreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -145,13 +137,9 @@ namespace Cold_Storage_GO.Migrations
                     ExpiryDate = table.Column<DateTime>(type: "datetime", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime", nullable: false),
-<<<<<<<< HEAD:Migrations/20250114050358_initialcreate.cs
                     ListingImage = table.Column<byte[]>(type: "longblob", nullable: true),
                     Tags = table.Column<string>(type: "longtext", nullable: true),
                     Ingredients = table.Column<string>(type: "longtext", nullable: true)
-========
-                    ListingImage = table.Column<byte[]>(type: "longblob", nullable: true)
->>>>>>>> AccountManagementandHelpCentreSupportV3:Migrations/20250114163711_resetDBAddDeleteCascading.cs
                 },
                 constraints: table =>
                 {
@@ -237,6 +225,20 @@ namespace Cold_Storage_GO.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Rewards", x => x.RewardId);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "ScheduledFreezes",
+                columns: table => new
+                {
+                    ScheduledFreezeId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    SubscriptionId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    FreezeStartDate = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ScheduledFreezes", x => x.ScheduledFreezeId);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
@@ -402,6 +404,51 @@ namespace Cold_Storage_GO.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "ChatMessages",
+                columns: table => new
+                {
+                    MessageId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    Message = table.Column<string>(type: "longtext", nullable: false),
+                    SentAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    StaffId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    TicketId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    IsStaffMessage = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    SupportTicketTicketId = table.Column<Guid>(type: "char(36)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChatMessages", x => x.MessageId);
+                    table.ForeignKey(
+                        name: "FK_ChatMessages_SupportTickets_SupportTicketTicketId",
+                        column: x => x.SupportTicketTicketId,
+                        principalTable: "SupportTickets",
+                        principalColumn: "TicketId");
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "TicketImage",
+                columns: table => new
+                {
+                    ImageId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    TicketId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    ImageData = table.Column<byte[]>(type: "longblob", nullable: false),
+                    UploadedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TicketImage", x => x.ImageId);
+                    table.ForeignKey(
+                        name: "FK_TicketImage_SupportTickets_TicketId",
+                        column: x => x.TicketId,
+                        principalTable: "SupportTickets",
+                        principalColumn: "TicketId",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "Follows",
                 columns: table => new
                 {
@@ -442,7 +489,10 @@ namespace Cold_Storage_GO.Migrations
                     StripeSessionId = table.Column<string>(type: "longtext", nullable: true),
                     SubscriptionChoice = table.Column<string>(type: "longtext", nullable: false),
                     Price = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Status = table.Column<string>(type: "varchar(255)", nullable: false)
+                    Status = table.Column<string>(type: "varchar(255)", nullable: false),
+                    ScheduledFreezeStartDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    ScheduledFreezeEndDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    IsScheduledForFreeze = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -487,10 +537,10 @@ namespace Cold_Storage_GO.Migrations
                 {
                     ProfileId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
-                    FullName = table.Column<string>(type: "longtext", nullable: true),
-                    PhoneNumber = table.Column<string>(type: "longtext", nullable: true),
-                    StreetAddress = table.Column<string>(type: "longtext", nullable: true),
-                    PostalCode = table.Column<string>(type: "longtext", nullable: true),
+                    FullName = table.Column<string>(type: "longtext", nullable: false),
+                    PhoneNumber = table.Column<string>(type: "longtext", nullable: false),
+                    StreetAddress = table.Column<string>(type: "longtext", nullable: false),
+                    PostalCode = table.Column<string>(type: "longtext", nullable: false),
                     UserId = table.Column<Guid>(type: "char(36)", nullable: false),
                     SubscriptionStatus = table.Column<string>(type: "longtext", nullable: false),
                     ProfilePicture = table.Column<byte[]>(type: "longblob", nullable: true)
@@ -506,6 +556,32 @@ namespace Cold_Storage_GO.Migrations
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "SubscriptionFreezeHistories",
+                columns: table => new
+                {
+                    FreezeId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    SubscriptionId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    FreezeStartDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    FreezeEndDate = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SubscriptionFreezeHistories", x => x.FreezeId);
+                    table.ForeignKey(
+                        name: "FK_SubscriptionFreezeHistories_Subscriptions_SubscriptionId",
+                        column: x => x.SubscriptionId,
+                        principalTable: "Subscriptions",
+                        principalColumn: "SubscriptionId",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChatMessages_SupportTicketTicketId",
+                table: "ChatMessages",
+                column: "SupportTicketTicketId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Comments_ParentCommentId",
@@ -528,6 +604,11 @@ namespace Cold_Storage_GO.Migrations
                 column: "OrderId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_SubscriptionFreezeHistories_SubscriptionId",
+                table: "SubscriptionFreezeHistories",
+                column: "SubscriptionId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Subscriptions_Status",
                 table: "Subscriptions",
                 column: "Status");
@@ -536,6 +617,11 @@ namespace Cold_Storage_GO.Migrations
                 name: "IX_Subscriptions_UserId",
                 table: "Subscriptions",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TicketImage_TicketId",
+                table: "TicketImage",
+                column: "TicketId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserProfiles_UserId",
@@ -552,6 +638,9 @@ namespace Cold_Storage_GO.Migrations
 
             migrationBuilder.DropTable(
                 name: "Articles");
+
+            migrationBuilder.DropTable(
+                name: "ChatMessages");
 
             migrationBuilder.DropTable(
                 name: "Comments");
@@ -581,16 +670,19 @@ namespace Cold_Storage_GO.Migrations
                 name: "Rewards");
 
             migrationBuilder.DropTable(
+                name: "ScheduledFreezes");
+
+            migrationBuilder.DropTable(
                 name: "Staff");
 
             migrationBuilder.DropTable(
                 name: "StaffSessions");
 
             migrationBuilder.DropTable(
-                name: "Subscriptions");
+                name: "SubscriptionFreezeHistories");
 
             migrationBuilder.DropTable(
-                name: "SupportTickets");
+                name: "TicketImage");
 
             migrationBuilder.DropTable(
                 name: "UserAdministration");
@@ -612,6 +704,12 @@ namespace Cold_Storage_GO.Migrations
 
             migrationBuilder.DropTable(
                 name: "orders");
+
+            migrationBuilder.DropTable(
+                name: "Subscriptions");
+
+            migrationBuilder.DropTable(
+                name: "SupportTickets");
 
             migrationBuilder.DropTable(
                 name: "Users");
