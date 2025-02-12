@@ -43,7 +43,7 @@ namespace Cold_Storage_GO
         public DbSet<Recipe> Recipes { get; set; }
         public DbSet<RecipeIngredient> RecipeIngredients { get; set; }
         public DbSet<RecipeInstruction> RecipeInstructions { get; set; }
-        public DbSet<RecipeImage> RecipeImage { get; set; }
+        public DbSet<RecipeImage> RecipeImages { get; set; }
         public DbSet<AIResponseLog> AIResponseLogs { get; set; }
         public DbSet<UserRecipeRequest> UserRecipeRequests { get; set; }
         public DbSet<AIRecipeRequest> AIRecipeRequests { get; set; }
@@ -104,6 +104,7 @@ namespace Cold_Storage_GO
                 .WithOne(img => img.Recipe)
                 .HasForeignKey(img => img.RecipeId)
                 .OnDelete(DeleteBehavior.Cascade);
+
 
 
             // AI DB CONFIG

@@ -22,6 +22,6 @@ namespace Cold_Storage_GO.Models
         public Guid RecipeId { get; set; } 
 
         [ForeignKey("RecipeId")]
-        public Recipe Recipe { get; set; }
+        public Recipe? Recipe { get; set; }
     }
 }

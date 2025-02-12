@@ -2,6 +2,7 @@
 using Cold_Storage_GO.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
+using System.Text.Json;
 
 namespace Cold_Storage_GO.Controllers
 {
@@ -56,7 +57,6 @@ namespace Cold_Storage_GO.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetRecipe(Guid id)
         {
-            Console.WriteLine($"Fetching recipe with ID: {id}");
             if (id == Guid.Empty)
             {
                 return BadRequest("Recipe ID is missing.");
@@ -76,33 +76,34 @@ namespace Cold_Storage_GO.Controllers
             var formattedRecipe = new
             {
                 RecipeId = recipe.RecipeId,
-                Name = recipe.Name,
-                Description = recipe.Description,
-                TimeTaken = recipe.TimeTaken,
+                Name = !string.IsNullOrEmpty(recipe.Name) ? recipe.Name : "Untitled Recipe",
+                Description = !string.IsNullOrEmpty(recipe.Description) ? recipe.Description : "No description available",
+                TimeTaken = recipe.TimeTaken > 0 ? recipe.TimeTaken : 0,
                 Tags = !string.IsNullOrEmpty(recipe.Tags) ? recipe.Tags : "No tags provided",
                 Visibility = recipe.Visibility,
                 Upvotes = recipe.Upvotes,
                 Downvotes = recipe.Downvotes,
                 CoverImages = recipe.CoverImages?.Select(img => Convert.ToBase64String(img.ImageData)).ToList() ?? new List<string>(),
 
-                // 🔥 Fix: Ensure type consistency for Ingredients
-                Ingredients = recipe.Ingredients != null && recipe.Ingredients.Any()
+                Ingredients = recipe.Ingredients?.Any() == true
                     ? recipe.Ingredients.Select(i => new
                     {
-                        Quantity = i.Quantity,
-                        Unit = i.Unit,
-                        Name = i.Name
-                    }).Cast<object>().ToList() // Ensures both cases return List<object>
-                    : new List<object>(),
+                        IngredientId = i.IngredientId,
+                        Quantity = string.IsNullOrEmpty(i.Quantity) ? "Unknown Quantity" : i.Quantity,
+                        Unit = string.IsNullOrEmpty(i.Unit) ? "Unknown Unit" : i.Unit,
+                        Name = string.IsNullOrEmpty(i.Name) ? "Unnamed Ingredient" : i.Name
+                    }).ToList<object>()  // ✅ Fix: Ensures both branches return `List<object>`
+                    : new List<object>(), // ✅ Ensures consistent return type
 
-                // 🔥 Fix: Ensure type consistency for Instructions
-                Instructions = recipe.Instructions != null && recipe.Instructions.Any()
+                Instructions = recipe.Instructions?.Any() == true
                     ? recipe.Instructions.Select(instr => new
                     {
-                        StepNumber = instr.StepNumber,
-                        Step = instr.Step
-                    }).Cast<object>().ToList() // Ensures both cases return List<object>
-                    : new List<object>()
+                        InstructionId = instr.InstructionId,
+                        StepNumber = instr.StepNumber > 0 ? instr.StepNumber : 1,
+                        Step = string.IsNullOrEmpty(instr.Step) ? "Step description missing" : instr.Step,
+                        StepImage = instr.StepImage != null ? Convert.ToBase64String(instr.StepImage) : null
+                    }).ToList<object>()  // ✅ Fix: Ensures both branches return `List<object>`
+                    : new List<object>()  // ✅ Ensures consistent return type
             };
 
             return Ok(formattedRecipe);
@@ -113,89 +114,113 @@ namespace Cold_Storage_GO.Controllers
 
 
 
-
-
-
-
         // 3. Create a Recipe
         [HttpPost]
         public async Task<IActionResult> CreateRecipe(
-        [FromForm] Recipe recipe,
-        [FromForm] List<IFormFile>? coverImages,
-        [FromForm] List<IFormFile>? instructionImages,
-        [FromForm] string? ingredients,
-        [FromForm] string? instructions)
+    [FromForm] Recipe recipe,
+    [FromForm] List<IFormFile>? coverImages,
+    [FromForm] List<IFormFile>? instructionImages,
+    [FromForm] string? ingredients,
+    [FromForm] string? instructions)
         {
             try
             {
                 recipe.RecipeId = Guid.NewGuid();
                 Console.WriteLine($"✅ Received Recipe Data: {System.Text.Json.JsonSerializer.Serialize(recipe)}");
 
-                // ✅ Initialize Lists to Avoid Null Reference Issues
+                // ✅ Ensure Lists are Initialized
                 recipe.Ingredients = new List<RecipeIngredient>();
                 recipe.Instructions = new List<RecipeInstruction>();
+                recipe.CoverImages = new List<RecipeImage>();
 
-                // ✅ Deserialize and Attach Ingredients
+                // ✅ Deserialize & Attach Ingredients Using JsonDocument
                 if (!string.IsNullOrEmpty(ingredients))
                 {
                     Console.WriteLine("🔹 Raw Ingredients JSON: " + ingredients);
                     try
                     {
-                        var deserializedIngredients = System.Text.Json.JsonSerializer.Deserialize<List<RecipeIngredient>>(ingredients);
-                        if (deserializedIngredients != null)
+                        using (JsonDocument doc = JsonDocument.Parse(ingredients))
                         {
-                            foreach (var ingredient in deserializedIngredients)
+                            foreach (JsonElement element in doc.RootElement.EnumerateArray())
                             {
-                                ingredient.IngredientId = Guid.NewGuid();
-                                ingredient.RecipeId = recipe.RecipeId;
+                                string quantity = element.GetProperty("quantity").GetString() ?? "[MISSING]";
+                                string unit = element.GetProperty("unit").GetString() ?? "[MISSING]";
+                                string name = element.GetProperty("name").GetString() ?? "[MISSING]";
+
+                                var ingredient = new RecipeIngredient
+                                {
+                                    IngredientId = Guid.NewGuid(),
+                                    RecipeId = recipe.RecipeId,
+                                    Quantity = quantity,
+                                    Unit = unit,
+                                    Name = name,
+                                    Recipe = recipe
+                                };
+
+                                recipe.Ingredients.Add(ingredient);
+                                Console.WriteLine($"🔍 Ingredient Added: ID={ingredient.IngredientId}, Quantity={ingredient.Quantity}, Unit={ingredient.Unit}, Name={ingredient.Name}");
                             }
-                            _context.RecipeIngredients.AddRange(deserializedIngredients); // ✅ Explicitly Save
-                            Console.WriteLine("✅ Successfully saved ingredients");
                         }
+                        Console.WriteLine($"✅ Successfully parsed {recipe.Ingredients.Count} ingredients.");
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine("❌ Error deserializing ingredients: " + ex.Message);
+                        Console.WriteLine("❌ Error parsing ingredients: " + ex.Message);
                     }
                 }
 
-                // ✅ Deserialize and Attach Instructions
+                // ✅ Deserialize & Attach Instructions Using JsonDocument
                 if (!string.IsNullOrEmpty(instructions))
                 {
                     Console.WriteLine("🔹 Raw Instructions JSON: " + instructions);
                     try
                     {
-                        var deserializedInstructions = System.Text.Json.JsonSerializer.Deserialize<List<RecipeInstruction>>(instructions);
-                        if (deserializedInstructions != null)
+                        using (JsonDocument doc = JsonDocument.Parse(instructions))
                         {
-                            for (int i = 0; i < deserializedInstructions.Count; i++)
+                            int stepNumber = 1;
+                            foreach (JsonElement element in doc.RootElement.EnumerateArray())
                             {
-                                deserializedInstructions[i].InstructionId = Guid.NewGuid();
-                                deserializedInstructions[i].RecipeId = recipe.RecipeId;
-                                deserializedInstructions[i].StepNumber = i + 1;
+                                string step = element.GetProperty("step").GetString() ?? "[STEP MISSING]";
 
-                                // ✅ Attach Image if Exists
-                                if (instructionImages != null && i < instructionImages.Count)
+                                var instruction = new RecipeInstruction
                                 {
-                                    using (var ms = new MemoryStream())
-                                    {
-                                        await instructionImages[i].CopyToAsync(ms);
-                                        deserializedInstructions[i].StepImage = ms.ToArray(); // ✅ Convert to byte[]
-                                    }
-                                }
+                                    InstructionId = Guid.NewGuid(),
+                                    RecipeId = recipe.RecipeId,
+                                    StepNumber = stepNumber++,
+                                    Step = step,
+                                    Recipe = recipe
+                                };
+
+                                recipe.Instructions.Add(instruction);
+                                Console.WriteLine($"🔍 Instruction Added: ID={instruction.InstructionId}, StepNumber={instruction.StepNumber}, Step={instruction.Step}");
                             }
-                            _context.RecipeInstructions.AddRange(deserializedInstructions); // ✅ Explicitly Save
-                            Console.WriteLine("✅ Successfully saved instructions");
                         }
+                        Console.WriteLine($"✅ Successfully parsed {recipe.Instructions.Count} instructions.");
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine("❌ Error deserializing instructions: " + ex.Message);
+                        Console.WriteLine("❌ Error parsing instructions: " + ex.Message);
+                    }
+                }
+
+                // ✅ Save Step Images
+                if (instructionImages != null && instructionImages.Count > 0)
+                {
+                    for (int i = 0; i < instructionImages.Count; i++)
+                    {
+                        if (i < recipe.Instructions.Count && instructionImages[i] != null)
+                        {
+                            using (var ms = new MemoryStream())
+                            {
+                                await instructionImages[i].CopyToAsync(ms);
+                                recipe.Instructions[i].StepImage = ms.ToArray();
+                                Console.WriteLine($"📸 Step Image Saved for Instruction ID={recipe.Instructions[i].InstructionId}");
+                            }
+                        }
                     }
                 }
 
                 // ✅ Save Cover Images
-                recipe.CoverImages = new List<RecipeImage>();
                 if (coverImages != null)
                 {
                     foreach (var image in coverImages)
@@ -203,36 +228,42 @@ namespace Cold_Storage_GO.Controllers
                         using (var ms = new MemoryStream())
                         {
                             await image.CopyToAsync(ms);
-                            recipe.CoverImages.Add(new RecipeImage
+                            var recipeImage = new RecipeImage
                             {
                                 ImageId = Guid.NewGuid(),
                                 ImageData = ms.ToArray(),
-                                RecipeId = recipe.RecipeId
-                            });
+                                RecipeId = recipe.RecipeId,
+                                Recipe = recipe
+                            };
+                            recipe.CoverImages.Add(recipeImage);
                         }
                     }
                 }
 
-                // ✅ Save Recipe First
+                // ✅ Attach Related Entities to the DbContext
                 _context.Recipes.Add(recipe);
+                _context.RecipeIngredients.AddRange(recipe.Ingredients);
+                _context.RecipeInstructions.AddRange(recipe.Instructions);
+                _context.RecipeImages.AddRange(recipe.CoverImages);
+
+                Console.WriteLine("🔥 Final Check Before Save:");
+                Console.WriteLine($"📌 Recipe ID: {recipe.RecipeId}");
+                Console.WriteLine($"📌 Tracked Ingredients Count Before Save: {recipe.Ingredients.Count}");
+                Console.WriteLine($"📌 Tracked Instructions Count Before Save: {recipe.Instructions.Count}");
+
                 await _context.SaveChangesAsync();
 
-                Console.WriteLine("✅ Recipe successfully saved to database!");
+                Console.WriteLine("✅ Recipe & Related Data Successfully Saved to Database!");
                 return CreatedAtAction(nameof(GetRecipe), new { id = recipe.RecipeId }, recipe);
             }
             catch (Exception ex)
             {
                 Console.WriteLine("❌ Error saving recipe:");
                 Console.WriteLine(ex.Message);
+                Console.WriteLine(ex.StackTrace);
                 return StatusCode(500, "An error occurred while creating the recipe.");
             }
         }
-
-
-
-
-
-
 
 
 

@@ -17,6 +17,6 @@ namespace Cold_Storage_GO.Models
 
         [ForeignKey("RecipeId")]
         [JsonIgnore] // Prevent infinite recursion during serialization
-        public Recipe Recipe { get; set; }
+        public Recipe? Recipe { get; set; }
     }
 }
