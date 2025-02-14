@@ -108,9 +108,6 @@ namespace Cold_Storage_GO.Controllers
         {
             try
             {
-
-                await _subscriptionService.CancelSubscriptionAsync(subscriptionId); // ✅ Call the correct service method
-
                 return Ok("Subscription has been successfully canceled.");
             }
             catch (Exception ex)

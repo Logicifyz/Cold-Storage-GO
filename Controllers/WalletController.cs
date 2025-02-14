@@ -182,7 +182,16 @@ namespace Cold_Storage_GO.Controllers
                 ExpiryDate = reward.ExpiryDate,
                 RewardUsable = true
             };
+            var redemptionEvent = new RewardRedemptionEvent
+            {
+                RedemptionId = redemption.RedemptionId, // from your existing redemption record
+                UserId = userId,
+                RewardId = rewardId,
+                ExpiryDate = reward.ExpiryDate,
+                RewardUsable = true // or false based on your business logic
+            };
 
+            _context.RewardRedemptionEvents.Add(redemptionEvent);       
             _context.Redemptions.Add(redemption);
             await _context.SaveChangesAsync();
 

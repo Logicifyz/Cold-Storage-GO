@@ -3,9 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Cold_Storage_GO.Models;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Cold_Storage_GO.Controllers
 {
+    [AllowAnonymous]
     [ApiController]
     [Route("api/[controller]")]
     public class CartController : ControllerBase
@@ -65,6 +67,13 @@ namespace Cold_Storage_GO.Controllers
                         Price = request.Price,
                     });
                 }
+                var cartEvent = new CartEvent
+                {
+                    UserId = userSession.UserId,
+                    MealKitId = request.MealKitId,
+                    Quantity = request.Quantity
+                };
+                _dbContext.CartEvents.Add(cartEvent);             
 
                 // Serialize and save back to session
                 userSession.Data = JsonSerializer.Serialize(cartItems);

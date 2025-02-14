@@ -45,7 +45,17 @@ namespace Cold_Storage_GO.Controllers
                 Status = "Unassigned",
                 CreatedAt = DateTime.UtcNow
             };
+            var ticketEvent = new SupportTicketEvent
+            {
+                TicketId = ticket.TicketId,
+                UserId = session.UserId,
+                Subject = request.Subject,
+                Category = request.Category,
+                Priority = "Unassigned", // or your logic for priority
+                Status = "Unassigned"
+            };
 
+            _context.SupportTicketEvents.Add(ticketEvent);
             // Add ticket to database
             _context.SupportTickets.Add(ticket);
             await _context.SaveChangesAsync(); // Save ticket first to generate TicketId
