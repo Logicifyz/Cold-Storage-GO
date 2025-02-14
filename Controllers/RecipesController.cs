@@ -68,7 +68,6 @@ namespace Cold_Storage_GO.Controllers
             recipe.Ingredients = updatedRecipe.Ingredients;
             recipe.Instructions = updatedRecipe.Instructions;
             recipe.Tags = updatedRecipe.Tags;
-            recipe.MediaUrl = updatedRecipe.MediaUrl;
             recipe.Visibility = updatedRecipe.Visibility;
 
             _context.Recipes.Update(recipe);
