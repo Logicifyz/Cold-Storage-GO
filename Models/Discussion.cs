@@ -1,4 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace Cold_Storage_GO.Models
 {
@@ -8,28 +11,31 @@ namespace Cold_Storage_GO.Models
         public Guid DiscussionId { get; set; }
 
         [Required]
-        public Guid UserId { get; set; } 
+        public Guid UserId { get; set; }
 
         [Required]
-        [MaxLength(100)] 
+        [MaxLength(100)]
         public string Title { get; set; } = string.Empty;
 
         [Required]
-        [MaxLength(1000)] 
-        public string Content { get; set; } = string.Empty;
+        [MaxLength(5000)] // Increased size to allow rich text
+        public string Content { get; set; } = string.Empty; // Stores rich text (HTML)
 
         [Required]
-        [MaxLength(50)] 
+        [MaxLength(50)]
         public string Category { get; set; } = string.Empty;
 
         [Required]
         [RegularExpression("^(public|private|friends-only)$", ErrorMessage = "Visibility must be 'public', 'private', or 'friends-only'")]
-        public string Visibility { get; set; } = "public"; 
+        public string Visibility { get; set; } = "public";
 
-        [Range(0, int.MaxValue)] 
+        [Range(0, int.MaxValue)]
         public int Upvotes { get; set; }
 
-        [Range(0, int.MaxValue)] 
+        [Range(0, int.MaxValue)]
         public int Downvotes { get; set; }
+
+        // ✅ One-to-Many Relationship with Discussion Images
+        public List<DiscussionImage>? CoverImages { get; set; }
     }
 }

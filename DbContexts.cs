@@ -30,6 +30,7 @@ namespace Cold_Storage_GO
         public DbSet<MealKit> MealKits { get; set; }
         public DbSet<Comment> Comments { get; set; }
         public DbSet<Discussion> Discussions { get; set; }
+        public DbSet<DiscussionImage> DiscussionImages { get; set; }
         public DbSet<Recipe> Recipes { get; set; }
         public DbSet<RecipeIngredient> RecipeIngredients { get; set; }
         public DbSet<RecipeInstruction> RecipeInstructions { get; set; }
@@ -123,6 +124,13 @@ namespace Cold_Storage_GO
                 .WithOne(img => img.Recipe)
                 .HasForeignKey(img => img.RecipeId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Discussion>()
+                .HasMany(d => d.CoverImages)
+                .WithOne(img => img.Discussion)
+                .HasForeignKey(img => img.DiscussionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
 
 
 
