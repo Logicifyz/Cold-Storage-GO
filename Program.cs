@@ -39,7 +39,7 @@ builder.Services.AddCors(options =>
 
 // Register controllers explicitly
 builder.Services.AddControllers();
-
+    
 // Stripe settings (optional, based on your project)
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
 
