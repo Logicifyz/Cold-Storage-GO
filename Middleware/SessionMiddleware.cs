@@ -29,7 +29,8 @@ namespace Cold_Storage_GO.Middleware
             {
                 "/api/Auth/login","/api/Auth/google-login","/api/staff/login","/api/Auth/register","/api/Auth/request-password-reset","/api/Auth/reset-password","/api/Auth/staff/login", "/swagger", "/api/Account/profile/", "/api/HelpCentre",
                 "/api/MealKit", "/api/Recipes", "/api/deliveries", "/api/deliveries/",
-                "/api/subscriptions", "/api/stripe/webhook", "/api/stripe/webhook/","/api/Dish","/api/Rewards","/api/Wallet", "/api/HelpCentre", "/api/HelpCentre/","/api/subscriptions/schedule-freeze/","/api/subscriptions/cancel-scheduled-freeze/","/api/subscriptions/schedule-freeze","/api/subscriptions/cancel-scheduled-freeze","/api/subscriptions/user-has-active/","/api/subscriptions/user-has-active","/api/subscriptions/all/","/api/subscriptions/all","/api/subscriptions/cancel/","/api/subscriptions/freeze/"
+                "/api/subscriptions", "/api/stripe/webhook", "/api/stripe/webhook/","/api/Dish","/api/Rewards","/api/Wallet", "/api/HelpCentre", "/api/HelpCentre/","/api/subscriptions/schedule-freeze/","/api/subscriptions/cancel-scheduled-freeze/","/api/subscriptions/schedule-freeze","/api/subscriptions/cancel-scheduled-freeze","/api/subscriptions/user-has-active/","/api/subscriptions/user-has-active","/api/subscriptions/all/","/api/subscriptions/all","/api/subscriptions/cancel/","/api/subscriptions/freeze/",
+                "/api/Auth/check-session"
             };
 
 
@@ -78,7 +79,7 @@ namespace Cold_Storage_GO.Middleware
                         return;
                     }
 
-                    var sessionExpiry = userSession.LastAccessed.AddMinutes(30);
+                    var sessionExpiry = userSession.LastAccessed.AddSeconds(60);
                     if (DateTime.UtcNow > sessionExpiry)
                     {
                         _logger.LogWarning("User session expired for SessionId: {SessionId}", sessionId);

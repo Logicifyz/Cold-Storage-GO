@@ -28,6 +28,9 @@ namespace Cold_Storage_GO.Controllers
             // Retrieve UserSessionId from the session middleware
             var userSessionId = HttpContext.Request.Cookies["SessionId"];
             var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.UserSessionId == userSessionId);
+            var singaporeTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+            var singaporeTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, singaporeTimeZone);
+
 
             if (session == null || !session.IsActive)
             {
@@ -43,7 +46,7 @@ namespace Cold_Storage_GO.Controllers
                 Details = request.Details,
                 Priority = "Unassigned",
                 Status = "Unassigned",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = singaporeTime  // SGT time
             };
             var ticketEvent = new SupportTicketEvent
             {
@@ -72,7 +75,7 @@ namespace Cold_Storage_GO.Controllers
                         {
                             TicketId = ticket.TicketId,
                             ImageData = memoryStream.ToArray(),
-                            UploadedAt = DateTime.UtcNow
+                            UploadedAt = singaporeTime
                         };
 
                         _context.TicketImage.Add(ticketImage);

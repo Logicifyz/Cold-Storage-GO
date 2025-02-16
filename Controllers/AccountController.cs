@@ -267,6 +267,11 @@ namespace Cold_Storage_GO.Controllers
                         userProfile.ProfilePicture = memoryStream.ToArray();  // Store as a byte array
                     }
                 }
+                else if (string.IsNullOrWhiteSpace(request.ProfilePicture?.FileName))
+                {
+                    // If no profile picture is uploaded, ensure it is null
+                    userProfile.ProfilePicture = null;
+                }
 
 
                 // Update username and email if they are provided and not already taken
@@ -308,7 +313,6 @@ namespace Cold_Storage_GO.Controllers
 
 
         {
-            
             // Get the currently authenticated user based on the session
             var sessionId = HttpContext.Request.Cookies["SessionId"];
 
@@ -343,6 +347,9 @@ namespace Cold_Storage_GO.Controllers
                 return NotFound("User profile not found.");
             }
 
+            bool isGoogleLogin = user.PasswordHash == "google-login";
+
+
             // Create a response model with the necessary profile data, including username, email, and verified status
             var profileResponse = new
             {
@@ -355,6 +362,8 @@ namespace Cold_Storage_GO.Controllers
                 PostalCode = userProfile.PostalCode,
                 ProfilePicture = userProfile.ProfilePicture,
                 Verified = user.UserAdministration.Verified,
+                IsGoogleLogin = isGoogleLogin  // Include the Google login indicator
+
             };
             return Ok(profileResponse);
         }

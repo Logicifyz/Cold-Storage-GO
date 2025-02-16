@@ -21,7 +21,7 @@ public class AuthController : ControllerBase
     private readonly GoogleAuthService _googleAuthService;
     private readonly string _clientId = "869557804479-pv18rpo94fbpd6hatmns6m4nes5adih8.apps.googleusercontent.com";  // Replace with your actual Google client ID
     private readonly ILogger<AuthController> _logger;
-
+        
 
     public AuthController(DbContexts context, EmailService emailService, GoogleAuthService googleAuthService, ILogger<AuthController> logger)
     {
@@ -516,16 +516,37 @@ public class AuthController : ControllerBase
 
         if (string.IsNullOrEmpty(sessionId))
         {
-            return Ok(new { sessionValid = false });
+            return Ok(new { sessionValid = false, reason = "NoSession" });
         }
 
-        // Find the session by SessionId and ensure it's active
+        // Find the session by SessionId
         var session = await _context.UserSessions
-            .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+            .FirstOrDefaultAsync(s => s.UserSessionId == sessionId);
 
         if (session == null)
         {
-            return Ok(new { sessionValid = false });
+            return Ok(new { sessionValid = false, reason = "SessionNotFound" });
+        }
+
+        // Check if the session is inactive
+        if (!session.IsActive)
+        {
+            return Ok(new { sessionValid = false, reason = "SessionInactive" });
+        }
+
+        // Check if the session expired
+        var sessionExpiry = session.LastAccessed.AddSeconds(60);
+        if (DateTime.UtcNow > sessionExpiry)
+        {
+            // Mark session as inactive and remove it
+            session.IsActive = false;
+            _context.UserSessions.Remove(session);
+            await _context.SaveChangesAsync();
+
+            // Clear the session cookie
+            CookieService.SetCookie(HttpContext, "SessionId", "", -1);
+
+            return Ok(new { sessionValid = false, reason = "SessionExpired" });
         }
 
         // Update the last accessed time for the session
@@ -535,16 +556,36 @@ public class AuthController : ControllerBase
 
         // Retrieve the user associated with this session
         var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.UserId == session.UserId); // Assuming UserId is stored in the session
+            .FirstOrDefaultAsync(u => u.UserId == session.UserId);
 
         if (user == null)
         {
-            return Ok(new { sessionValid = false });
+            return Ok(new { sessionValid = false, reason = "UserNotFound" });
         }
 
-        // Return session validity, userId, and username
-        return Ok(new { sessionValid = true, userId = user.UserId, username = user.Username });
+        // Get the profile picture from UserProfiles table
+        var userProfile = await _context.UserProfiles
+            .FirstOrDefaultAsync(up => up.UserId == user.UserId);
+
+        // Convert blob to Base64 string
+        string profilePicBase64 = null;
+        if (userProfile?.ProfilePicture != null && userProfile.ProfilePicture.Length > 0)
+        {
+            profilePicBase64 = Convert.ToBase64String(userProfile.ProfilePicture);
+        }
+
+        // Return session validity, userId, username, and profilePic
+        return Ok(new
+        {
+            sessionValid = true,
+            userId = user.UserId,
+            username = user.Username,
+            profilePic = profilePicBase64
+        });
     }
+
+
+
 
 
 
@@ -659,12 +700,13 @@ public class AuthController : ControllerBase
             Data = "{}",
             IsActive = true
         };
-
+        
         _context.UserSessions.Add(session);
         await _context.SaveChangesAsync();
 
         // Set the session ID in a cookie
         CookieService.SetCookie(HttpContext, "SessionId", sessionId);
+        bool isPasswordSet = !(string.IsNullOrEmpty(user.PasswordHash) || user.PasswordHash == "google-login");
 
         return Ok(new
         {
@@ -674,6 +716,8 @@ public class AuthController : ControllerBase
             UserId = user.UserId,
             Username = user.Username,
             Role = user.Role,
+            PasswordSet = isPasswordSet, // Add this field to indicate if the password is set
+
             Profile = new
             {
                 user.UserProfile.FullName,
