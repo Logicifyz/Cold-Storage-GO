@@ -29,6 +29,7 @@ namespace Cold_Storage_GO
         public DbSet<Redemptions> Redemptions { get; set; }
         public DbSet<MealKit> MealKits { get; set; }
         public DbSet<Comment> Comments { get; set; }
+        public DbSet<CommentVote> CommentVotes { get; set; }
         public DbSet<Discussion> Discussions { get; set; }
         public DbSet<DiscussionImage> DiscussionImages { get; set; }
         public DbSet<Recipe> Recipes { get; set; }
@@ -79,13 +80,6 @@ namespace Cold_Storage_GO
                 .HasForeignKey(nf => nf.DishId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Configure Comment threading
-            modelBuilder.Entity<Comment>()
-                .HasOne(c => c.ParentComment)
-                .WithMany(c => c.Replies)
-                .HasForeignKey(c => c.ParentCommentId)
-                .OnDelete(DeleteBehavior.Restrict);
-
             // One-to-Many Relationship for Subscriptions
             modelBuilder.Entity<User>()
                 .HasMany(u => u.Subscriptions)
@@ -131,7 +125,15 @@ namespace Cold_Storage_GO
                 .HasForeignKey(img => img.DiscussionId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<Comment>()
+                .HasOne(c => c.ParentComment)
+                .WithMany(c => c.Replies)
+                .HasForeignKey(c => c.ParentCommentId)
+                .OnDelete(DeleteBehavior.Restrict);
 
+            modelBuilder.Entity<CommentVote>()
+                .HasIndex(cv => new { cv.CommentId, cv.UserId })
+                .IsUnique();
 
 
             // AI DB CONFIG
