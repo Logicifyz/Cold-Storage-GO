@@ -22,12 +22,12 @@ namespace Cold_Storage_GO.Controllers
         // Get all tickets with filters
         [HttpGet("tickets")]
         public async Task<IActionResult> GetAllTickets(
-            [FromQuery] string status = null,
-            [FromQuery] string priority = null,
-            [FromQuery] string assignedTo = null,
-            [FromQuery] string category = null,
-            [FromQuery] string subject = null,
-            [FromQuery] Guid? ticketId = null) // Added ticketId filter
+    [FromQuery] string status = null,
+    [FromQuery] string priority = null,
+    [FromQuery] string assignedTo = null,
+    [FromQuery] string category = null,
+    [FromQuery] string subject = null,
+    [FromQuery] Guid? ticketId = null)
         {
             // Get the session ID from the cookies
             var sessionId = Request.Cookies["SessionId"];
@@ -37,7 +37,7 @@ namespace Cold_Storage_GO.Controllers
                 return Unauthorized("Session ID is required.");
             }
 
-            // Optional: If you still want to validate session, you can use the sessionId here
+            // Validate the session
             var staffSession = await _context.StaffSessions
                 .FirstOrDefaultAsync(ss => ss.StaffSessionId == sessionId && ss.IsActive);
 
@@ -46,7 +46,10 @@ namespace Cold_Storage_GO.Controllers
                 return Unauthorized("Invalid or inactive staff session.");
             }
 
-            var query = _context.SupportTickets.AsQueryable();
+            // Load tickets along with their images
+            var query = _context.SupportTickets
+                .Include(t => t.Images) // Include the related images
+                .AsQueryable();
 
             // Apply filters if they are provided
             if (!string.IsNullOrEmpty(status))
@@ -74,15 +77,38 @@ namespace Cold_Storage_GO.Controllers
                 query = query.Where(t => t.Subject.Contains(subject));
             }
 
-            // Apply the ticketId filter if provided
             if (ticketId.HasValue)
             {
                 query = query.Where(t => t.TicketId == ticketId.Value);
             }
 
             var tickets = await query.ToListAsync();
-            return Ok(tickets);
+
+            // Construct the response
+            var ticketResponses = tickets.Select(ticket => new
+            {
+                ticket.TicketId,
+                ticket.UserId,
+                ticket.Subject,
+                ticket.Category,
+                ticket.Details,
+                ticket.StaffId,
+                Priority = ticket.Priority ?? "Unassigned",
+                Status = ticket.Status ?? "Unassigned",
+                CreatedAt = ticket.CreatedAt,
+                ResolvedAt = ticket.ResolvedAt,
+
+                Images = ticket.Images.Select(img => new
+                {
+                    img.ImageId,
+                    img.UploadedAt,
+                    ImageData = img.ImageData.Length > 0 ? Convert.ToBase64String(img.ImageData) : null
+                }).ToList()
+            }).ToList();
+
+            return Ok(ticketResponses);
         }
+
 
         // Update ticket
         [HttpPut("tickets/{ticketId}")]
@@ -90,6 +116,7 @@ namespace Cold_Storage_GO.Controllers
         {
             // Get the session ID from the cookies
             var sessionId = Request.Cookies["SessionId"];
+
 
             if (string.IsNullOrEmpty(sessionId))
             {
