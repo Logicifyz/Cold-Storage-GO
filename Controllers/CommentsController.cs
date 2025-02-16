@@ -25,14 +25,24 @@ namespace Cold_Storage_GO.Controllers
             if (recipeId == null && discussionId == null)
                 return BadRequest("Either recipeId or discussionId must be provided.");
 
-            var commentsQuery = _context.Comments
-            .Include(c => c.User)
-            .ThenInclude(u => u.UserProfile) // ✅ Include User Profile for Profile Picture
-            .Where(c => c.IsDeleted == false)
-            .OrderBy(c => c.CreatedAt)
-            .AsQueryable();
+            var sessionId = Request.Cookies["SessionId"];
+            Guid? userId = null;
 
-            // ✅ Only return comments associated with the correct Recipe/Discussion
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                var userSession = await _context.UserSessions
+                    .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+                if (userSession != null)
+                    userId = userSession.UserId;
+            }
+
+            var commentsQuery = _context.Comments
+                .Include(c => c.User)
+                .ThenInclude(u => u.UserProfile) // Include User Profile for Profile Picture
+                .Where(c => c.IsDeleted == false)
+                .AsQueryable();
+
             if (recipeId != null)
                 commentsQuery = commentsQuery.Where(c => c.RecipeId == recipeId);
             else
@@ -40,56 +50,91 @@ namespace Cold_Storage_GO.Controllers
 
             var comments = await commentsQuery.ToListAsync();
 
+            // Get all votes for these comments
+            var commentIds = comments.Select(c => c.CommentId).ToList();
+            var votes = await _context.CommentVotes
+                .Where(v => commentIds.Contains(v.CommentId))
+                .ToListAsync();
 
+            var voteLookup = comments.ToDictionary(
+                c => c.CommentId,
+                c => votes.Where(v => v.CommentId == c.CommentId).Any()
+                    ? new
+                    {
+                        Upvotes = votes.Count(v => v.CommentId == c.CommentId && v.VoteType == 1),
+                        Downvotes = votes.Count(v => v.CommentId == c.CommentId && v.VoteType == -1),
+                        UserVote = userId.HasValue
+                            ? votes.FirstOrDefault(v => v.CommentId == c.CommentId && v.UserId == userId)?.VoteType ?? 0
+                            : 0
+                    }
+                    : new { Upvotes = 0, Downvotes = 0, UserVote = 0 }
+            );
 
-            // Convert list to dictionary for fast lookup
-            var commentDict = comments.ToDictionary(c => c.CommentId);
+            // ✅ Restore Nested Structure
+            var commentDict = new Dictionary<Guid, dynamic>();
 
-            // Ensure each comment has a replies list
-            foreach (var comment in comments)
+            var formattedComments = comments.Select(comment => new
             {
-                comment.Replies = new List<Comment>(); // Prevent duplication
-            }
+                comment.CommentId,
+                comment.Content,
+                comment.CreatedAt,
+                comment.ParentCommentId,
+                Upvotes = voteLookup[comment.CommentId].Upvotes,
+                Downvotes = voteLookup[comment.CommentId].Downvotes,
+                UserVote = voteLookup[comment.CommentId].UserVote,
+                Username = comment.User?.Username ?? "Unknown",
+                ProfilePicture = comment.User?.UserProfile?.ProfilePicture != null
+                    ? Convert.ToBase64String(comment.User.UserProfile.ProfilePicture)
+                    : null,
+                Replies = new List<object>() // This will be populated later
+            }).ToDictionary(c => c.CommentId);
 
-            // Organize comments into a parent-child hierarchy
+            // ✅ Assign Replies to Their Parents
             List<object> rootComments = new List<object>();
-            Dictionary<Guid, object> formattedComments = new Dictionary<Guid, object>();
 
-            foreach (var comment in comments)
-            {
-                var formattedComment = new
-                {
-                    comment.CommentId,
-                    comment.Content,
-                    comment.CreatedAt,
-                    comment.ParentCommentId,
-                    comment.Upvotes,
-                    comment.Downvotes,
-                    Username = comment.User?.Username ?? "Unknown",
-                    ProfilePicture = comment.User?.UserProfile?.ProfilePicture != null ?
-                        Convert.ToBase64String(comment.User.UserProfile.ProfilePicture) : null,
-                    Replies = new List<object>() // Will populate later
-                };
-
-                formattedComments[comment.CommentId] = formattedComment;
-            }
-
-            // Assign replies to their parents
-            foreach (var comment in comments)
+            foreach (var comment in formattedComments.Values)
             {
                 if (comment.ParentCommentId.HasValue && formattedComments.ContainsKey(comment.ParentCommentId.Value))
                 {
-                    var parentComment = (dynamic)formattedComments[comment.ParentCommentId.Value];
-                    ((List<object>)parentComment.Replies).Add(formattedComments[comment.CommentId]);
+                    var parentComment = formattedComments[comment.ParentCommentId.Value];
+                    ((List<object>)parentComment.Replies).Add(comment);
                 }
                 else
                 {
-                    rootComments.Add(formattedComments[comment.CommentId]);
+                    rootComments.Add(comment);
                 }
             }
 
+            // ✅ Sort First by Upvotes, Then by CreatedAt (Newer at Bottom)
+            void SortComments(List<object> commentsList)
+            {
+                commentsList.Sort((a, b) =>
+                {
+                    dynamic commentA = a, commentB = b;
+                    int voteCompare = commentB.Upvotes.CompareTo(commentA.Upvotes);
+                    if (voteCompare != 0) return voteCompare; // Sort by upvotes first
+                    return commentA.CreatedAt.CompareTo(commentB.CreatedAt); // Sort by createdAt if upvotes are equal
+                });
+
+                foreach (var comment in commentsList)
+                {
+                    dynamic dynamicComment = comment;
+                    if (dynamicComment.Replies.Count > 0)
+                    {
+                        SortComments(dynamicComment.Replies);
+                    }
+                }
+            }
+
+            SortComments(rootComments);
+
             return Ok(rootComments);
         }
+
+
+
+
+
 
 
 
@@ -241,19 +286,31 @@ namespace Cold_Storage_GO.Controllers
             {
                 if (existingVote.VoteType == voteType)
                 {
+                    // ✅ If user clicks again on the same vote, remove the vote
                     _context.CommentVotes.Remove(existingVote);
                     if (voteType == 1) comment.Upvotes--;
                     else comment.Downvotes--;
                 }
                 else
                 {
+                    // ✅ If user changes their vote (upvote -> downvote or vice versa)
+                    if (existingVote.VoteType == 1)
+                    {
+                        comment.Upvotes--;
+                        comment.Downvotes++;
+                    }
+                    else
+                    {
+                        comment.Downvotes--;
+                        comment.Upvotes++;
+                    }
+
                     existingVote.VoteType = voteType;
-                    if (voteType == 1) { comment.Upvotes++; comment.Downvotes--; }
-                    else { comment.Downvotes++; comment.Upvotes--; }
                 }
             }
             else
             {
+                // ✅ New Vote
                 var newVote = new CommentVote
                 {
                     VoteId = Guid.NewGuid(),
@@ -262,12 +319,17 @@ namespace Cold_Storage_GO.Controllers
                     VoteType = voteType
                 };
                 _context.CommentVotes.Add(newVote);
+
                 if (voteType == 1) comment.Upvotes++;
                 else comment.Downvotes++;
             }
 
             await _context.SaveChangesAsync();
+
+            // ✅ Send updated vote counts to frontend immediately
             return Ok(new { upvotes = comment.Upvotes, downvotes = comment.Downvotes });
         }
+
+
     }
 }
