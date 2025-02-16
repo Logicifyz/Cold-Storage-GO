@@ -22,8 +22,20 @@ namespace Cold_Storage_GO.Controllers
         [HttpGet]
         public async Task<IActionResult> GetDiscussions([FromQuery] string? category, [FromQuery] string? visibility)
         {
+            var sessionId = Request.Cookies["SessionId"];
+            Guid? userId = null;
+
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                var userSession = await _context.UserSessions
+                    .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+                if (userSession != null)
+                    userId = userSession.UserId;
+            }
+
             var query = _context.Discussions
                 .Include(d => d.CoverImages)
+                .Include(d => d.Votes) // Include votes
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(category))
@@ -48,6 +60,9 @@ namespace Cold_Storage_GO.Controllers
                 discussion.Visibility,
                 discussion.Upvotes,
                 discussion.Downvotes,
+                userVote = userId.HasValue
+                    ? discussion.Votes.FirstOrDefault(v => v.UserId == userId)?.VoteType ?? 0
+                    : 0, // Include user's vote state
                 CoverImages = discussion.CoverImages?.Select(img => Convert.ToBase64String(img.ImageData)).ToList()
             });
 
@@ -68,6 +83,7 @@ namespace Cold_Storage_GO.Controllers
 
             var discussion = await _context.Discussions
                 .Include(d => d.CoverImages)
+                .Include(d => d.Votes) // Include votes
                 .FirstOrDefaultAsync(d => d.DiscussionId == discussionGuid);
 
             if (discussion == null)
@@ -77,6 +93,21 @@ namespace Cold_Storage_GO.Controllers
             }
 
             Console.WriteLine($"✅ [FOUND] Returning discussion: {discussion.Title}");
+
+            var sessionId = Request.Cookies["SessionId"];
+            Guid? userId = null;
+
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                var userSession = await _context.UserSessions
+                    .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+                if (userSession != null)
+                    userId = userSession.UserId;
+            }
+
+            var userVote = userId.HasValue
+                ? discussion.Votes.FirstOrDefault(v => v.UserId == userId)?.VoteType ?? 0
+                : 0;
 
             var formattedDiscussion = new
             {
@@ -88,13 +119,103 @@ namespace Cold_Storage_GO.Controllers
                 discussion.Visibility,
                 discussion.Upvotes,
                 discussion.Downvotes,
+                userVote, // Include user's vote state
                 CoverImages = discussion.CoverImages?.Select(img => Convert.ToBase64String(img.ImageData)).ToList()
             };
 
             return Ok(formattedDiscussion);
         }
 
+        [HttpPost("{id}/vote")]
+        public async Task<IActionResult> VoteDiscussion(Guid id, [FromBody] int voteType)
+        {
+            if (voteType != -1 && voteType != 1)
+                return BadRequest("Invalid vote type. Use -1 for downvote and 1 for upvote.");
 
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+                return Unauthorized(new { message = "User must be logged in." });
+
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+            if (userSession == null)
+                return Unauthorized(new { message = "Invalid or expired session." });
+
+            var userId = userSession.UserId;
+
+            var discussion = await _context.Discussions.FindAsync(id);
+            if (discussion == null)
+                return NotFound("Discussion not found.");
+
+            var existingVote = await _context.DiscussionVotes
+                .FirstOrDefaultAsync(v => v.DiscussionId == id && v.UserId == userId);
+
+            if (existingVote != null)
+            {
+                if (existingVote.VoteType == voteType)
+                {
+                    // ✅ Remove vote if clicked again
+                    _context.DiscussionVotes.Remove(existingVote);
+
+                    // ✅ Adjust the vote counts
+                    if (voteType == 1)
+                        discussion.Upvotes = Math.Max(0, discussion.Upvotes - 1); // Decrease upvotes
+                    else if (voteType == -1)
+                        discussion.Downvotes = Math.Max(0, discussion.Downvotes - 1); // Decrease downvotes
+                }
+                else
+                {
+                    // ✅ Change vote (Upvote <-> Downvote)
+                    if (existingVote.VoteType == 1)
+                    {
+                        discussion.Upvotes = Math.Max(0, discussion.Upvotes - 1); // Decrease upvotes
+                        discussion.Downvotes += 1; // Increase downvotes
+                    }
+                    else if (existingVote.VoteType == -1)
+                    {
+                        discussion.Downvotes = Math.Max(0, discussion.Downvotes - 1); // Decrease downvotes
+                        discussion.Upvotes += 1; // Increase upvotes
+                    }
+
+                    existingVote.VoteType = voteType; // Update the vote type
+                    _context.DiscussionVotes.Update(existingVote);
+                }
+            }
+            else
+            {
+                // ✅ Add new vote
+                var newVote = new DiscussionVote
+                {
+                    VoteId = Guid.NewGuid(),
+                    DiscussionId = id,
+                    UserId = userId,
+                    VoteType = voteType
+                };
+                _context.DiscussionVotes.Add(newVote);
+
+                // ✅ Adjust the vote counts
+                if (voteType == 1)
+                    discussion.Upvotes += 1; // Increase upvotes
+                else if (voteType == -1)
+                    discussion.Downvotes += 1; // Increase downvotes
+            }
+
+            await _context.SaveChangesAsync();
+
+            var userVote = await _context.DiscussionVotes
+               .Where(v => v.DiscussionId == id && v.UserId == userId)
+               .Select(v => v.VoteType)
+               .FirstOrDefaultAsync();
+
+            return Ok(new
+            {
+                upvotes = discussion.Upvotes,
+                downvotes = discussion.Downvotes,
+                voteScore = discussion.Upvotes - discussion.Downvotes,
+                userVote = userVote
+            });
+        }
 
         // ✅ 3. Create a Discussion (Matches `CreateRecipe`)
         [HttpPost]

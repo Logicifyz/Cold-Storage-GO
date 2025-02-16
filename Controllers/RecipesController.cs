@@ -22,13 +22,30 @@ namespace Cold_Storage_GO.Controllers
         [HttpGet]
         public async Task<IActionResult> GetRecipes()
         {
+            var sessionId = Request.Cookies["SessionId"];
+            Guid? userId = null;
+
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                var userSession = await _context.UserSessions
+                    .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+                if (userSession != null)
+                    userId = userSession.UserId;
+            }
+
             var recipes = await _context.Recipes
                 .Include(r => r.CoverImages)
+                .OrderByDescending(r => r.Upvotes - r.Downvotes)  // ✅ Sorts correctly
                 .ToListAsync();
 
-            Console.WriteLine($"Returning {recipes.Count} recipes...");
-
             var dishMap = await _context.Dishes.ToDictionaryAsync(d => d.DishId, d => d.Name);
+
+            // 🔹 Fetch user-specific votes to persist vote state
+            var userVotes = userId.HasValue
+                ? await _context.RecipeVotes
+                    .Where(v => v.UserId == userId)
+                    .ToDictionaryAsync(v => v.RecipeId, v => v.VoteType)
+                : new Dictionary<Guid, int>();
 
             var formattedRecipes = recipes.Select(recipe => new
             {
@@ -41,11 +58,11 @@ namespace Cold_Storage_GO.Controllers
                 TimeTaken = recipe.TimeTaken,
                 Tags = recipe.Tags,
                 Visibility = recipe.Visibility,
-                Upvotes = recipe.Upvotes,
-                Downvotes = recipe.Downvotes,
-                CoverImages = recipe.CoverImages != null && recipe.CoverImages.Any()
-                    ? recipe.CoverImages.Select(img => Convert.ToBase64String(img.ImageData)).ToList()
-                    : new List<string>(), // Ensure an empty array if no images exist
+                Upvotes = Math.Max(recipe.Upvotes, 0),  // ✅ Prevents negative upvotes
+                Downvotes = Math.Max(recipe.Downvotes, 0), // ✅ Prevents negative downvotes
+                VoteScore = recipe.Upvotes - recipe.Downvotes,  // ✅ CAN BE NEGATIVE!
+                UserVote = userVotes.ContainsKey(recipe.RecipeId) ? userVotes[recipe.RecipeId] : 0,
+                CoverImages = recipe.CoverImages?.Select(img => Convert.ToBase64String(img.ImageData)).ToList() ?? new List<string>(),
                 Ingredients = recipe.Ingredients,
                 Instructions = recipe.Instructions
             }).ToList();
@@ -53,16 +70,23 @@ namespace Cold_Storage_GO.Controllers
             return Ok(formattedRecipes);
         }
 
-
-
-
-
         [HttpGet("{id}")]
         public async Task<IActionResult> GetRecipe(Guid id)
         {
             if (id == Guid.Empty)
             {
                 return BadRequest("Recipe ID is missing.");
+            }
+
+            var sessionId = Request.Cookies["SessionId"];
+            Guid? userId = null;
+
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                var userSession = await _context.UserSessions
+                    .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+                if (userSession != null)
+                    userId = userSession.UserId;
             }
 
             var recipe = await _context.Recipes
@@ -79,46 +103,138 @@ namespace Cold_Storage_GO.Controllers
             var dish = await _context.Dishes.FindAsync(recipe.DishId);
             string dishName = dish?.Name ?? "Unknown MealKit";
 
+            var userVote = userId.HasValue
+                ? await _context.RecipeVotes
+                    .Where(v => v.RecipeId == id && v.UserId == userId)
+                    .Select(v => v.VoteType)
+                    .FirstOrDefaultAsync()
+                : 0;
+
             var formattedRecipe = new
             {
                 RecipeId = recipe.RecipeId,
                 DishId = recipe.DishId,
                 DishName = dishName,
-                Name = !string.IsNullOrEmpty(recipe.Name) ? recipe.Name : "Untitled Recipe",
-                Description = !string.IsNullOrEmpty(recipe.Description) ? recipe.Description : "No description available",
-                TimeTaken = recipe.TimeTaken > 0 ? recipe.TimeTaken : 0,
-                Tags = !string.IsNullOrEmpty(recipe.Tags) ? recipe.Tags : "No tags provided",
+                Name = recipe.Name,
+                Description = recipe.Description,
+                TimeTaken = recipe.TimeTaken,
+                Tags = recipe.Tags,
                 Visibility = recipe.Visibility,
-                Upvotes = recipe.Upvotes,
-                Downvotes = recipe.Downvotes,
+                Upvotes = Math.Max(recipe.Upvotes, 0),
+                Downvotes = Math.Max(recipe.Downvotes, 0),
+                VoteScore = recipe.Upvotes - recipe.Downvotes,  // ✅ CAN BE NEGATIVE!
+                UserVote = userVote,
                 CoverImages = recipe.CoverImages?.Select(img => Convert.ToBase64String(img.ImageData)).ToList() ?? new List<string>(),
+                Ingredients = recipe.Ingredients?.Select(i => new
+                {
+                    IngredientId = i.IngredientId,
+                    Quantity = string.IsNullOrEmpty(i.Quantity) ? "Unknown Quantity" : i.Quantity,
+                    Unit = string.IsNullOrEmpty(i.Unit) ? "Unknown Unit" : i.Unit,
+                    Name = string.IsNullOrEmpty(i.Name) ? "Unnamed Ingredient" : i.Name
+                }).ToList<object>() ?? new List<object>(),
 
-                Ingredients = recipe.Ingredients?.Any() == true
-                    ? recipe.Ingredients.Select(i => new
-                    {
-                        IngredientId = i.IngredientId,
-                        Quantity = string.IsNullOrEmpty(i.Quantity) ? "Unknown Quantity" : i.Quantity,
-                        Unit = string.IsNullOrEmpty(i.Unit) ? "Unknown Unit" : i.Unit,
-                        Name = string.IsNullOrEmpty(i.Name) ? "Unnamed Ingredient" : i.Name
-                    }).ToList<object>()  // ✅ Fix: Ensures both branches return `List<object>`
-                    : new List<object>(), // ✅ Ensures consistent return type
-
-                Instructions = recipe.Instructions?.Any() == true
-                    ? recipe.Instructions.Select(instr => new
-                    {
-                        InstructionId = instr.InstructionId,
-                        StepNumber = instr.StepNumber > 0 ? instr.StepNumber : 1,
-                        Step = string.IsNullOrEmpty(instr.Step) ? "Step description missing" : instr.Step,
-                        StepImage = instr.StepImage != null ? Convert.ToBase64String(instr.StepImage) : null
-                    }).ToList<object>()  // ✅ Fix: Ensures both branches return `List<object>`
-                    : new List<object>()  // ✅ Ensures consistent return type
+                Instructions = recipe.Instructions?.Select(instr => new
+                {
+                    InstructionId = instr.InstructionId,
+                    StepNumber = instr.StepNumber > 0 ? instr.StepNumber : 1,
+                    Step = string.IsNullOrEmpty(instr.Step) ? "Step description missing" : instr.Step,
+                    StepImage = instr.StepImage != null ? Convert.ToBase64String(instr.StepImage) : null
+                }).ToList<object>() ?? new List<object>()
             };
 
             return Ok(formattedRecipe);
         }
 
+        [HttpPost("{id}/vote")]
+        public async Task<IActionResult> VoteRecipe(Guid id, [FromBody] int voteType)
+        {
+            if (voteType != -1 && voteType != 1)
+                return BadRequest("Invalid vote type. Use -1 for downvote and 1 for upvote.");
 
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+                return Unauthorized(new { message = "User must be logged in." });
 
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+            if (userSession == null)
+                return Unauthorized(new { message = "Invalid or expired session." });
+
+            var userId = userSession.UserId;
+
+            var recipe = await _context.Recipes.FindAsync(id);
+            if (recipe == null)
+                return NotFound("Recipe not found.");
+
+            var existingVote = await _context.RecipeVotes
+                .FirstOrDefaultAsync(v => v.RecipeId == id && v.UserId == userId);
+
+            if (existingVote != null)
+            {
+                if (existingVote.VoteType == voteType)
+                {
+                    // ✅ Remove vote if clicked again
+                    _context.RecipeVotes.Remove(existingVote);
+
+                    // ✅ Adjust the vote counts
+                    if (voteType == 1)
+                        recipe.Upvotes = Math.Max(0, recipe.Upvotes - 1); // Decrease upvotes
+                    else if (voteType == -1)
+                        recipe.Downvotes = Math.Max(0, recipe.Downvotes - 1); // Decrease downvotes
+                }
+                else
+                {
+                    // ✅ Change vote (Upvote <-> Downvote)
+                    if (existingVote.VoteType == 1)
+                    {
+                        recipe.Upvotes = Math.Max(0, recipe.Upvotes - 1); // Decrease upvotes
+                        recipe.Downvotes += 1; // Increase downvotes
+                    }
+                    else if (existingVote.VoteType == -1)
+                    {
+                        recipe.Downvotes = Math.Max(0, recipe.Downvotes - 1); // Decrease downvotes
+                        recipe.Upvotes += 1; // Increase upvotes
+                    }
+
+                    existingVote.VoteType = voteType; // Update the vote type
+                    _context.RecipeVotes.Update(existingVote);
+                }
+            }
+            else
+            {
+                // ✅ Add new vote
+                var newVote = new RecipeVote
+                {
+                    VoteId = Guid.NewGuid(),
+                    RecipeId = id,
+                    UserId = userId,
+                    VoteType = voteType
+                };
+                _context.RecipeVotes.Add(newVote);
+
+                // ✅ Adjust the vote counts
+                if (voteType == 1)
+                    recipe.Upvotes += 1; // Increase upvotes
+                else if (voteType == -1)
+                    recipe.Downvotes += 1; // Increase downvotes
+            }
+
+            await _context.SaveChangesAsync();
+
+            var userVote = await _context.RecipeVotes
+               .Where(v => v.RecipeId == id && v.UserId == userId)
+               .Select(v => v.VoteType)
+               .FirstOrDefaultAsync();
+
+            return Ok(new
+            {
+                upvotes = recipe.Upvotes,
+                downvotes = recipe.Downvotes,
+                voteScore = recipe.Upvotes - recipe.Downvotes,
+                userVote = userVote
+            });
+        }
 
 
 

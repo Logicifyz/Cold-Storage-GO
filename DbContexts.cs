@@ -6,7 +6,7 @@ namespace Cold_Storage_GO
 {
     public class DbContexts : DbContext
     {
-        // Constructor accepts options injected via DI
+        
         public DbContexts(DbContextOptions<DbContexts> options) : base(options)
         {
         }
@@ -32,10 +32,12 @@ namespace Cold_Storage_GO
         public DbSet<CommentVote> CommentVotes { get; set; }
         public DbSet<Discussion> Discussions { get; set; }
         public DbSet<DiscussionImage> DiscussionImages { get; set; }
+        public DbSet<DiscussionVote> DiscussionVotes { get; set; }
         public DbSet<Recipe> Recipes { get; set; }
         public DbSet<RecipeIngredient> RecipeIngredients { get; set; }
         public DbSet<RecipeInstruction> RecipeInstructions { get; set; }
         public DbSet<RecipeImage> RecipeImages { get; set; }
+        public DbSet<RecipeVote> RecipeVotes { get; set; }
         public DbSet<AIResponseLog> AIResponseLogs { get; set; }
         public DbSet<UserRecipeRequest> UserRecipeRequests { get; set; }
         public DbSet<AIRecipeRequest> AIRecipeRequests { get; set; }
@@ -119,11 +121,32 @@ namespace Cold_Storage_GO
                 .HasForeignKey(img => img.RecipeId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<RecipeVote>()
+                .HasOne(rv => rv.Recipe)
+                .WithMany(r => r.Votes)
+                .HasForeignKey(rv => rv.RecipeId)
+                .OnDelete(DeleteBehavior.Cascade);  
+
+            modelBuilder.Entity<RecipeVote>()
+                .HasIndex(rv => new { rv.RecipeId, rv.UserId })
+                .IsUnique();
+
             modelBuilder.Entity<Discussion>()
                 .HasMany(d => d.CoverImages)
                 .WithOne(img => img.Discussion)
                 .HasForeignKey(img => img.DiscussionId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<DiscussionVote>()
+                .HasOne(dv => dv.Discussion)
+                .WithMany(d => d.Votes)
+                .HasForeignKey(dv => dv.DiscussionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<DiscussionVote>()
+                .HasIndex(dv => new { dv.DiscussionId, dv.UserId })
+                .IsUnique();
+
 
             modelBuilder.Entity<Comment>()
                 .HasOne(c => c.ParentComment)
