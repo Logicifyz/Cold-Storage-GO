@@ -82,17 +82,19 @@ namespace Cold_Storage_GO.Controllers
                 await _context.SaveChangesAsync(); // Save images to TicketImage table
             }
 
+            // Analytics: SupportTicketEvent has already been created above for tracking.
+
             return Ok(new { TicketId = ticket.TicketId, Message = "Ticket opened successfully." });
         }
 
 
         [HttpGet("GetTickets")]
         public async Task<IActionResult> GetTickets(
-    [FromQuery] string status = null,
-    [FromQuery] string priority = null,
-    [FromQuery] string category = null,
-    [FromQuery] string subject = null,
-    [FromQuery] Guid? ticketId = null) // Added ticketId filter
+            [FromQuery] string status = null,
+            [FromQuery] string priority = null,
+            [FromQuery] string category = null,
+            [FromQuery] string subject = null,
+            [FromQuery] Guid? ticketId = null) // Added ticketId filter
         {
             // Retrieve UserSessionId from the session using UserSessionId from headers
             var userSessionId = HttpContext.Request.Cookies["SessionId"];

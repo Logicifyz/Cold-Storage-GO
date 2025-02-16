@@ -91,6 +91,11 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// In Startup.cs or Program.cs
+builder.Services.AddControllers().AddJsonOptions(options => {
+    options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+});
+
 // Add authentication and authorization
 // ✅ Authentication and Authorization Setup
 builder.Services.AddAuthentication(options =>
