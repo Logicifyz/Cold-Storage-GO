@@ -156,16 +156,24 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var user = await _context.Users
-            .Include(u => u.UserProfile)
-            .Include(u => u.UserAdministration)
-            .FirstOrDefaultAsync(u => u.Email == request.Email);
+        .Include(u => u.UserProfile)
+        .Include(u => u.UserAdministration)
+        .FirstOrDefaultAsync(u => u.Email == request.Email);
 
+        // Check if the user exists
         if (user == null)
         {
             return Unauthorized(new { message = "Invalid email or password." });
         }
 
         var userAdmin = user.UserAdministration;
+
+        // Check if the account is deactivated
+        if (!userAdmin.Activation)
+        {
+            return StatusCode(403, new { message = "Account is deactivated. Please contact support." });
+        }
+
 
         // Check if account is locked
         if (userAdmin.LockoutUntil.HasValue && userAdmin.LockoutUntil > DateTime.UtcNow)
@@ -661,6 +669,12 @@ public class AuthController : ControllerBase
             _context.Wallets.Add(wallet);
             await _context.SaveChangesAsync();
         }
+
+        if (!user.UserAdministration.Activation)
+        {
+            return StatusCode(403, new { message = "Account is deactivated. Please contact support." });
+        }
+
 
         // Check if password is set for the user
         if (string.IsNullOrEmpty(user.PasswordHash) || user.PasswordHash == "google-login")
