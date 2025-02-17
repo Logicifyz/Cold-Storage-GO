@@ -88,7 +88,7 @@ namespace Cold_Storage_GO.Services
                 }
 
                 _logger.LogInformation("Check complete.");
-                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken); // Check every minute
+                await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken); // Check every minute
             }
         }
 

@@ -250,7 +250,11 @@ namespace Cold_Storage_GO.Controllers
         {
             var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
             if (subscription == null) return NotFound("Subscription not found.");
-
+            DateTime minFreezeStartDate = subscription.StartDate.AddDays(1);
+            if (request.StartDate < minFreezeStartDate)
+            {
+                return BadRequest($"Freeze start date must be at least {minFreezeStartDate:yyyy-MM-dd}.");
+            }
             // Check if the freeze start or end date is after the subscription's end date
             if (request.StartDate > subscription.EndDate || request.EndDate > subscription.EndDate)
             {
