@@ -31,17 +31,43 @@ namespace Cold_Storage_GO.Services
                     var subscriptionService = scope.ServiceProvider.GetRequiredService<SubscriptionService>();
                     var dbContext = scope.ServiceProvider.GetRequiredService<DbContexts>();
 
-                    // ✅ Find subscriptions scheduled for freezing today
-                    var scheduledFreezes = await dbContext.SubscriptionFreezeHistories
-                        .Where(f => f.FreezeStartDate == DateTime.UtcNow.Date && f.FreezeEndDate == null)
+                    // ✅ Activate scheduled freezes
+                    var freezesToActivate = await dbContext.SubscriptionFreezeHistories
+                        .Where(f => f.FreezeStartDate <= DateTime.UtcNow && f.FreezeEndDate == null)
                         .ToListAsync();
 
-                    foreach (var freeze in scheduledFreezes)
+                    foreach (var freeze in freezesToActivate)
                     {
-                        await subscriptionService.FreezeSubscriptionAsync(freeze.SubscriptionId);
+                        try
+                        {
+                            await subscriptionService.FreezeSubscriptionAsync(freeze.SubscriptionId);
+                            _logger.LogInformation($"✅ Activated freeze for Subscription ID: {freeze.SubscriptionId}");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError($"❌ Failed to activate freeze for Subscription ID: {freeze.SubscriptionId}. Error: {ex.Message}");
+                        }
                     }
 
-                    // ✅ Process expired subscriptions
+                    // ✅ Deactivate expired freezes
+                    var freezesToDeactivate = await dbContext.SubscriptionFreezeHistories
+                        .Where(f => f.FreezeEndDate <= DateTime.UtcNow && f.FreezeEndDate != null)
+                        .ToListAsync();
+
+                    foreach (var freeze in freezesToDeactivate)
+                    {
+                        try
+                        {
+                            await subscriptionService.UnfreezeSubscriptionAsync(freeze.SubscriptionId);
+                            _logger.LogInformation($"✅ Deactivated freeze for Subscription ID: {freeze.SubscriptionId}");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError($"❌ Failed to deactivate freeze for Subscription ID: {freeze.SubscriptionId}. Error: {ex.Message}");
+                        }
+                    }
+
+                    // ✅ Process expired subscriptions (existing logic)
                     var expiredSubscriptions = await dbContext.Subscriptions
                         .Where(s => s.EndDate <= DateTime.UtcNow && s.Status == "Active")
                         .ToListAsync();
@@ -62,7 +88,7 @@ namespace Cold_Storage_GO.Services
                 }
 
                 _logger.LogInformation("Check complete.");
-                await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken); // Check every minute
             }
         }
 
