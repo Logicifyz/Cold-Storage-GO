@@ -41,8 +41,11 @@ namespace Cold_Storage_GO.Models
         [Range(0, int.MaxValue)]
         public int Downvotes { get; set; }
 
-        [JsonIgnore] // Prevent serialization issues
+        [JsonIgnore] 
         public List<RecipeImage> CoverImages { get; set; } = new List<RecipeImage>();
+
+        [JsonIgnore]  
+        public List<RecipeVote> Votes { get; set; } = new List<RecipeVote>();
 
     }
 }

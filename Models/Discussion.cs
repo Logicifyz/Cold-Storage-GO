@@ -35,7 +35,9 @@ namespace Cold_Storage_GO.Models
         [Range(0, int.MaxValue)]
         public int Downvotes { get; set; }
 
-        // ✅ One-to-Many Relationship with Discussion Images
         public List<DiscussionImage>? CoverImages { get; set; }
+
+        [JsonIgnore] 
+        public List<DiscussionVote> Votes { get; set; } = new List<DiscussionVote>();
     }
 }
