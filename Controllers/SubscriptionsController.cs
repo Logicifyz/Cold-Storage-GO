@@ -23,8 +23,8 @@ namespace Cold_Storage_GO.Controllers
         public async Task<IActionResult> GetUserSubscription([FromQuery] Guid userId)
         {
             var subscription = await _context.Subscriptions
-        .Where(s => s.UserId == userId && s.Status != "Canceled") // 🔥 Exclude canceled subscriptions
-        .FirstOrDefaultAsync();
+                .Where(s => s.UserId == userId && s.Status != "Canceled") // 🔥 Exclude canceled subscriptions
+                .FirstOrDefaultAsync();
 
             if (subscription == null)
                 return NotFound("Subscription not found.");
@@ -56,8 +56,26 @@ namespace Cold_Storage_GO.Controllers
                 request.SubscriptionType,
                 request.SubscriptionChoice, // New field added here
                 request.Price
-
             );
+
+            // Analytics tracking: Log subscription creation event
+            var newSubscription = await _context.Subscriptions
+                .Where(s => s.UserId == request.UserId)
+                .OrderByDescending(s => s.StartDate)
+                .FirstOrDefaultAsync();
+            if (newSubscription != null)
+            {
+                _context.SubscriptionEvents.Add(new SubscriptionEvent
+                {
+                    SubscriptionId = newSubscription.SubscriptionId,
+                    UserId = newSubscription.UserId,
+                    EventType = "Created",
+                    EventTime = DateTime.UtcNow,
+                    Details = "Subscription created successfully."
+                });
+                await _context.SaveChangesAsync();
+            }
+
             return Ok("Subscription created successfully");
         }
 
@@ -68,6 +86,22 @@ namespace Cold_Storage_GO.Controllers
             try
             {
                 await _subscriptionService.ToggleAutoRenewalAsync(subscriptionId);
+
+                // Analytics tracking: Log auto-renewal toggle event
+                var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
+                if (subscription != null)
+                {
+                    _context.SubscriptionEvents.Add(new SubscriptionEvent
+                    {
+                        SubscriptionId = subscription.SubscriptionId,
+                        UserId = subscription.UserId,
+                        EventType = "ToggleAutoRenewal",
+                        EventTime = DateTime.UtcNow,
+                        Details = "Auto-Renewal status updated successfully."
+                    });
+                    await _context.SaveChangesAsync();
+                }
+
                 return Ok("Auto-Renewal status updated successfully.");
             }
             catch (Exception ex)
@@ -88,11 +122,35 @@ namespace Cold_Storage_GO.Controllers
                 if ((bool)subscription.IsFrozen)
                 {
                     await _subscriptionService.UnfreezeSubscriptionAsync(subscriptionId);
+
+                    // Analytics tracking: Log unfreeze event
+                    _context.SubscriptionEvents.Add(new SubscriptionEvent
+                    {
+                        SubscriptionId = subscription.SubscriptionId,
+                        UserId = subscription.UserId,
+                        EventType = "Unfreeze",
+                        EventTime = DateTime.UtcNow,
+                        Details = "Subscription unfrozen successfully."
+                    });
+                    await _context.SaveChangesAsync();
+
                     return Ok("Subscription unfrozen successfully.");
                 }
                 else
                 {
                     await _subscriptionService.FreezeSubscriptionAsync(subscriptionId);
+
+                    // Analytics tracking: Log freeze event
+                    _context.SubscriptionEvents.Add(new SubscriptionEvent
+                    {
+                        SubscriptionId = subscription.SubscriptionId,
+                        UserId = subscription.UserId,
+                        EventType = "Freeze",
+                        EventTime = DateTime.UtcNow,
+                        Details = "Subscription frozen successfully."
+                    });
+                    await _context.SaveChangesAsync();
+
                     return Ok("Subscription frozen successfully.");
                 }
             }
@@ -108,6 +166,21 @@ namespace Cold_Storage_GO.Controllers
         {
             try
             {
+                // Analytics tracking: Log cancellation event
+                var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
+                if (subscription != null)
+                {
+                    _context.SubscriptionEvents.Add(new SubscriptionEvent
+                    {
+                        SubscriptionId = subscription.SubscriptionId,
+                        UserId = subscription.UserId,
+                        EventType = "Canceled",
+                        EventTime = DateTime.UtcNow,
+                        Details = "Subscription has been successfully canceled."
+                    });
+                    await _context.SaveChangesAsync();
+                }
+
                 return Ok("Subscription has been successfully canceled.");
             }
             catch (Exception ex)
@@ -115,7 +188,6 @@ namespace Cold_Storage_GO.Controllers
                 return BadRequest($"Error canceling subscription: {ex.Message}");
             }
         }
-
 
         // ✅ New: Get Subscriptions by SubscriptionChoice
         [HttpGet("choice/{subscriptionChoice}")]
@@ -160,8 +232,25 @@ namespace Cold_Storage_GO.Controllers
         public async Task<IActionResult> UpdateSubscription(Guid subscriptionId, [FromBody] UpdateSubscriptionRequest request)
         {
             await _subscriptionService.UpdateSubscriptionStatusAsync(subscriptionId, request);
+
+            // Analytics tracking: Log update event
+            var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
+            if (subscription != null)
+            {
+                _context.SubscriptionEvents.Add(new SubscriptionEvent
+                {
+                    SubscriptionId = subscription.SubscriptionId,
+                    UserId = subscription.UserId,
+                    EventType = "Updated",
+                    EventTime = DateTime.UtcNow,
+                    Details = "Subscription updated successfully."
+                });
+                await _context.SaveChangesAsync();
+            }
+
             return Ok("Subscription updated successfully");
         }
+
         // ✅ Fetch the latest subscription for the current user
         [HttpGet("latest")]
         public async Task<IActionResult> GetLatestSubscription()
@@ -219,7 +308,6 @@ namespace Cold_Storage_GO.Controllers
 
             return Ok(new { hasActiveSubscription });
         }
-
 
         [HttpGet("history")]
         public async Task<IActionResult> GetSubscriptionHistory()
@@ -283,6 +371,20 @@ namespace Cold_Storage_GO.Controllers
             _context.SubscriptionFreezeHistories.Add(freezeHistory);
             await _context.SaveChangesAsync();
 
+            // Analytics tracking: Log scheduled freeze event
+            if (subscription != null)
+            {
+                _context.SubscriptionEvents.Add(new SubscriptionEvent
+                {
+                    SubscriptionId = subscription.SubscriptionId,
+                    UserId = subscription.UserId,
+                    EventType = "ScheduledFreeze",
+                    EventTime = DateTime.UtcNow,
+                    Details = $"Freeze scheduled from {request.StartDate} to {request.EndDate}."
+                });
+                await _context.SaveChangesAsync();
+            }
+
             return Ok(new { message = "Freeze scheduled successfully.", startDate = request.StartDate, endDate = request.EndDate });
         }
 
@@ -293,6 +395,22 @@ namespace Cold_Storage_GO.Controllers
             try
             {
                 await _subscriptionService.CancelScheduledFreezeAsync(subscriptionId);
+
+                // Analytics tracking: Log cancellation of scheduled freeze event
+                var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
+                if (subscription != null)
+                {
+                    _context.SubscriptionEvents.Add(new SubscriptionEvent
+                    {
+                        SubscriptionId = subscription.SubscriptionId,
+                        UserId = subscription.UserId,
+                        EventType = "CancelScheduledFreeze",
+                        EventTime = DateTime.UtcNow,
+                        Details = "Scheduled freeze canceled."
+                    });
+                    await _context.SaveChangesAsync();
+                }
+
                 return Ok("Scheduled freeze has been canceled.");
             }
             catch (Exception ex)
@@ -381,15 +499,22 @@ namespace Cold_Storage_GO.Controllers
                 reason = "You frequently switch plans! Try these new options.";
             }
 
+            // Analytics tracking: Log recommendation event
+            _context.SubscriptionEvents.Add(new SubscriptionEvent
+            {
+                SubscriptionId = activeSubscription.SubscriptionId,
+                UserId = activeSubscription.UserId,
+                EventType = "Recommendation",
+                EventTime = DateTime.UtcNow,
+                Details = $"Smart recommendation provided: {recommendedPlan}. Reason: {reason}"
+            });
+            await _context.SaveChangesAsync();
+
             return Ok(new
             {
                 recommendedPlan,
                 reason
             });
         }
-
-
-
-
     }
 }

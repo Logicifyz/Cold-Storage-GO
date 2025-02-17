@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cold_Storage_GO.Migrations
 {
     [DbContext(typeof(DbContexts))]
-    [Migration("20250216170258_profileidguid")]
-    partial class profileidguid
+    [Migration("20250216155520_initialcreate")]
+    partial class initialcreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -1193,9 +1193,9 @@ namespace Cold_Storage_GO.Migrations
 
             modelBuilder.Entity("Cold_Storage_GO.Models.UserProfile", b =>
                 {
-                    b.Property<Guid>("ProfileId")
+                    b.Property<int>("ProfileId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
+                        .HasColumnType("int");
 
                     b.Property<string>("FullName")
                         .IsRequired()
