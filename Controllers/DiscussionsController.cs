@@ -33,10 +33,29 @@ namespace Cold_Storage_GO.Controllers
                     userId = userSession.UserId;
             }
 
-            var query = _context.Discussions
-                .Include(d => d.CoverImages)
-                .Include(d => d.Votes) // Include votes
-                .AsQueryable();
+            var query = from discussion in _context.Discussions
+                        join user in _context.Users on discussion.UserId equals user.UserId
+                        join userProfile in _context.UserProfiles on user.UserId equals userProfile.UserId
+                        select new
+                        {
+                            discussion.DiscussionId,
+                            discussion.UserId,
+                            User = new
+                            {
+                                user.Username,
+                                userProfile.ProfilePicture
+                            },
+                            discussion.Title,
+                            discussion.Content,
+                            discussion.Category,
+                            discussion.Visibility,
+                            discussion.Upvotes,
+                            discussion.Downvotes,
+                            CoverImages = discussion.CoverImages != null
+                                ? discussion.CoverImages.Select(img => Convert.ToBase64String(img.ImageData)).ToList()
+                                : new List<string>(),
+                            Votes = discussion.Votes
+                        };
 
             if (!string.IsNullOrEmpty(category))
             {
@@ -54,6 +73,7 @@ namespace Cold_Storage_GO.Controllers
             {
                 discussion.DiscussionId,
                 discussion.UserId,
+                User = discussion.User,
                 discussion.Title,
                 discussion.Content,
                 discussion.Category,
@@ -62,8 +82,8 @@ namespace Cold_Storage_GO.Controllers
                 discussion.Downvotes,
                 userVote = userId.HasValue
                     ? discussion.Votes.FirstOrDefault(v => v.UserId == userId)?.VoteType ?? 0
-                    : 0, // Include user's vote state
-                CoverImages = discussion.CoverImages?.Select(img => Convert.ToBase64String(img.ImageData)).ToList()
+                    : 0,
+                discussion.CoverImages
             });
 
             return Ok(formattedDiscussions);
@@ -125,6 +145,45 @@ namespace Cold_Storage_GO.Controllers
 
             return Ok(formattedDiscussion);
         }
+
+        [HttpGet("user/{username}")]
+        public async Task<IActionResult> GetUserDiscussions(string username)
+        {
+            if (string.IsNullOrEmpty(username))
+                return BadRequest("Username is required.");
+
+            var sessionId = Request.Cookies["SessionId"];
+            Guid? userId = null;
+
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                var userSession = await _context.UserSessions
+                    .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+                if (userSession != null)
+                    userId = userSession.UserId;
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+            if (user == null) return NotFound("User not found.");
+
+            var discussions = await _context.Discussions
+                .Where(d => d.UserId == user.UserId)
+                .Select(discussion => new
+                {
+                    discussion.DiscussionId,
+                    discussion.Title,
+                    discussion.Content,
+                    discussion.Upvotes,
+                    discussion.Downvotes,
+                    CoverImages = discussion.CoverImages != null
+                        ? discussion.CoverImages.Select(img => Convert.ToBase64String(img.ImageData)).ToList()
+                        : new List<string>()
+                })
+                .ToListAsync();
+
+            return Ok(discussions);
+        }
+
 
         [HttpPost("{id}/vote")]
         public async Task<IActionResult> VoteDiscussion(Guid id, [FromBody] int voteType)

@@ -198,6 +198,41 @@ namespace Cold_Storage_GO.Controllers
         }
 
 
+        [HttpGet("user/{username}")]
+        public async Task<IActionResult> GetUserComments(string username)
+        {
+            if (string.IsNullOrEmpty(username))
+                return BadRequest("Username is required.");
+
+            var sessionId = Request.Cookies["SessionId"];
+            Guid? userId = null;
+
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                var userSession = await _context.UserSessions
+                    .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+                if (userSession != null)
+                    userId = userSession.UserId;
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+            if (user == null) return NotFound("User not found.");
+
+            var comments = await _context.Comments
+                .Where(c => c.UserId == user.UserId)
+                .Select(comment => new
+                {
+                    comment.CommentId,
+                    comment.Content,
+                    comment.CreatedAt,
+                    comment.RecipeId,
+                    comment.DiscussionId
+                })
+                .ToListAsync();
+
+            return Ok(comments);
+        }
+
 
 
         // ✅ PUT (Update) a Comment (Only by Owner)

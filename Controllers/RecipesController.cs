@@ -33,42 +33,57 @@ namespace Cold_Storage_GO.Controllers
                     userId = userSession.UserId;
             }
 
-            var recipes = await _context.Recipes
-                .Include(r => r.CoverImages)
-                .OrderByDescending(r => r.Upvotes - r.Downvotes)  // ✅ Sorts correctly
-                .ToListAsync();
+            var query = from recipe in _context.Recipes
+                        join user in _context.Users on recipe.UserId equals user.UserId
+                        join userProfile in _context.UserProfiles on user.UserId equals userProfile.UserId
+                        select new
+                        {
+                            recipe.RecipeId,
+                            recipe.UserId,
+                            User = new
+                            {
+                                user.Username,
+                                userProfile.ProfilePicture
+                            },
+                            recipe.DishId,
+                            recipe.Name,
+                            recipe.Description,
+                            recipe.TimeTaken,
+                            recipe.Tags,
+                            recipe.Visibility,
+                            recipe.Upvotes,
+                            recipe.Downvotes,
+                            CoverImages = recipe.CoverImages != null
+                                ? recipe.CoverImages.Select(img => Convert.ToBase64String(img.ImageData)).ToList()
+                                : new List<string>(),
+                            Votes = recipe.Votes
+                        };
 
-            var dishMap = await _context.Dishes.ToDictionaryAsync(d => d.DishId, d => d.Name);
-
-            // 🔹 Fetch user-specific votes to persist vote state
-            var userVotes = userId.HasValue
-                ? await _context.RecipeVotes
-                    .Where(v => v.UserId == userId)
-                    .ToDictionaryAsync(v => v.RecipeId, v => v.VoteType)
-                : new Dictionary<Guid, int>();
+            var recipes = await query.ToListAsync();
 
             var formattedRecipes = recipes.Select(recipe => new
             {
-                RecipeId = recipe.RecipeId,
-                UserId = recipe.UserId,
-                DishId = recipe.DishId,
-                DishName = dishMap.ContainsKey(recipe.DishId) ? dishMap[recipe.DishId] : "Unknown MealKit",
-                Name = recipe.Name,
-                Description = recipe.Description,
-                TimeTaken = recipe.TimeTaken,
-                Tags = recipe.Tags,
-                Visibility = recipe.Visibility,
-                Upvotes = Math.Max(recipe.Upvotes, 0),  // ✅ Prevents negative upvotes
-                Downvotes = Math.Max(recipe.Downvotes, 0), // ✅ Prevents negative downvotes
-                VoteScore = recipe.Upvotes - recipe.Downvotes,  // ✅ CAN BE NEGATIVE!
-                UserVote = userVotes.ContainsKey(recipe.RecipeId) ? userVotes[recipe.RecipeId] : 0,
-                CoverImages = recipe.CoverImages?.Select(img => Convert.ToBase64String(img.ImageData)).ToList() ?? new List<string>(),
-                Ingredients = recipe.Ingredients,
-                Instructions = recipe.Instructions
-            }).ToList();
+                recipe.RecipeId,
+                recipe.UserId,
+                User = recipe.User,
+                recipe.DishId,
+                recipe.Name,
+                recipe.Description,
+                recipe.TimeTaken,
+                recipe.Tags,
+                recipe.Visibility,
+                recipe.Upvotes,
+                recipe.Downvotes,
+                userVote = userId.HasValue
+                    ? recipe.Votes.FirstOrDefault(v => v.UserId == userId)?.VoteType ?? 0
+                    : 0,
+                recipe.CoverImages
+            });
 
             return Ok(formattedRecipes);
         }
+
+
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetRecipe(Guid id)
@@ -144,6 +159,46 @@ namespace Cold_Storage_GO.Controllers
 
             return Ok(formattedRecipe);
         }
+
+        [HttpGet("user/{username}")]
+        public async Task<IActionResult> GetUserRecipes(string username)
+        {
+            if (string.IsNullOrEmpty(username))
+                return BadRequest("Username is required.");
+
+            var sessionId = Request.Cookies["SessionId"];
+            Guid? userId = null;
+
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                var userSession = await _context.UserSessions
+                    .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+                if (userSession != null)
+                    userId = userSession.UserId;
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+            if (user == null) return NotFound("User not found.");
+
+            var recipes = await _context.Recipes
+                .Where(r => r.UserId == user.UserId)
+                .Select(recipe => new
+                {
+                    recipe.RecipeId,
+                    recipe.Name,
+                    recipe.Description,
+                    recipe.Upvotes,
+                    recipe.Downvotes,
+                    CoverImages = recipe.CoverImages != null
+                        ? recipe.CoverImages.Select(img => Convert.ToBase64String(img.ImageData)).ToList()
+                        : new List<string>()  // Ensures no null errors
+                })
+                .ToListAsync();
+
+            return Ok(recipes);
+        }
+
+
 
         [HttpPost("{id}/vote")]
         public async Task<IActionResult> VoteRecipe(Guid id, [FromBody] int voteType)
