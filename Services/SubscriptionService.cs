@@ -26,31 +26,24 @@ namespace Cold_Storage_GO.Services
             var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
             if (subscription == null) throw new Exception("Subscription not found.");
 
-            // ✅ Prevent immediate freezing if a future freeze is already scheduled
-            var scheduledFreeze = await _context.SubscriptionFreezeHistories
-                .Where(f => f.SubscriptionId == subscriptionId && f.FreezeStartDate > DateTime.UtcNow.Date)
-                .FirstOrDefaultAsync();
-
-            if (scheduledFreeze != null)
-            {
-                return; // ✅ Skip instead of throwing an error
-            }
-
+            // Check if the subscription is already frozen
             if (subscription.IsFrozen ?? false)
             {
-                return; // ✅ Exit instead of 
+                return; // Already frozen
             }
 
-            var freezeRecord = new SubscriptionFreezeHistory
+            // Check if there's a scheduled freeze for today
+            var scheduledFreeze = await _context.SubscriptionFreezeHistories
+                .Where(f => f.SubscriptionId == subscriptionId && f.FreezeStartDate <= DateTime.UtcNow && f.FreezeEndDate == null)
+                .FirstOrDefaultAsync();
+
+            if (scheduledFreeze == null)
             {
-                SubscriptionId = subscriptionId,
-                FreezeStartDate = DateTime.UtcNow.Date,
-    FreezeEndDate = DateTime.UtcNow.Date.AddDays(7) // Example: Freeze for 7 days
-            };
+                return; // No scheduled freeze to activate
+            }
 
-            _context.SubscriptionFreezeHistories.Add(freezeRecord);
+            // Freeze the subscription
             subscription.IsFrozen = true;
-
             _context.Subscriptions.Update(subscription);
             await _context.SaveChangesAsync();
         }
@@ -61,22 +54,23 @@ namespace Cold_Storage_GO.Services
             var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
             if (subscription == null) throw new Exception("Subscription not found.");
 
+            // Check if the subscription is frozen
             if (!subscription.IsFrozen ?? false)
             {
-                throw new Exception("Subscription is not frozen.");
+                return; // Not frozen
             }
 
-            var freezeRecord = await _context.SubscriptionFreezeHistories
-                .Where(f => f.SubscriptionId == subscriptionId && f.FreezeEndDate == null)
-                .OrderByDescending(f => f.FreezeStartDate)
+            // Check if there's a scheduled freeze that has ended
+            var scheduledFreeze = await _context.SubscriptionFreezeHistories
+                .Where(f => f.SubscriptionId == subscriptionId && f.FreezeEndDate <= DateTime.UtcNow)
                 .FirstOrDefaultAsync();
 
-            if (freezeRecord != null)
+            if (scheduledFreeze == null)
             {
-                freezeRecord.FreezeEndDate = DateTime.UtcNow.Date;
-                _context.SubscriptionFreezeHistories.Update(freezeRecord);
+                return; // No scheduled freeze to deactivate
             }
 
+            // Unfreeze the subscription
             subscription.IsFrozen = false;
             _context.Subscriptions.Update(subscription);
             await _context.SaveChangesAsync();
@@ -412,20 +406,35 @@ namespace Cold_Storage_GO.Services
         }
 
         // ✅ Cancel a scheduled freeze before it happens
-        public async Task CancelScheduledFreezeAsync(Guid subscriptionId)
+        public async Task CancelScheduledFreezeAsync(Guid subscriptionId, Guid freezeId)
         {
+            var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
+            if (subscription == null) throw new Exception("Subscription not found.");
+
             var freezeRecord = await _context.SubscriptionFreezeHistories
-                .Where(f => f.SubscriptionId == subscriptionId && f.FreezeStartDate > DateTime.UtcNow.Date)
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(f => f.FreezeId == freezeId && f.SubscriptionId == subscriptionId);
 
             if (freezeRecord == null)
             {
-                throw new Exception("No upcoming freeze found to cancel.");
+                throw new Exception("No scheduled freeze found to cancel.");
             }
 
-            _context.SubscriptionFreezeHistories.Remove(freezeRecord);
+            // Case 1: If the freeze has not started yet, just delete it
+            if (freezeRecord.FreezeStartDate > DateTime.UtcNow)
+            {
+                _context.SubscriptionFreezeHistories.Remove(freezeRecord);
+            }
+            else
+            {
+                // Case 2: If the freeze is already active, update the freeze end date to today + 1
+                freezeRecord.FreezeEndDate = DateTime.UtcNow.Date.AddDays(1);
+                subscription.IsFrozen = false; // Unfreeze the subscription
+                _context.Subscriptions.Update(subscription);
+            }
+
             await _context.SaveChangesAsync();
         }
+
 
 
     }

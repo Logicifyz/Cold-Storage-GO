@@ -289,23 +289,48 @@ namespace Cold_Storage_GO.Controllers
         }
 
         // ✅ Cancel a scheduled freeze
-        [HttpDelete("cancel-scheduled-freeze/{subscriptionId}")]
-        public async Task<IActionResult> CancelScheduledFreeze(Guid subscriptionId)
+        [HttpDelete("cancel-scheduled-freeze/{subscriptionId}/{freezeId}")]
+        public async Task<IActionResult> CancelScheduledFreeze(Guid subscriptionId, Guid freezeId)
         {
-            var freezeRecord = await _context.SubscriptionFreezeHistories
-                .Where(f => f.SubscriptionId == subscriptionId && f.FreezeStartDate > DateTime.UtcNow)
-                .FirstOrDefaultAsync();
-
-            if (freezeRecord == null)
+            try
             {
-                return NotFound("No upcoming freeze found to cancel.");
+                var freezeRecord = await _context.SubscriptionFreezeHistories
+                    .FirstOrDefaultAsync(f => f.SubscriptionId == subscriptionId && f.FreezeId == freezeId);
+
+                if (freezeRecord == null)
+                {
+                    return NotFound(new { message = "No scheduled freeze found to cancel." });
+                }
+
+                // Case 1: If the freeze has not started yet, just delete it
+                if (freezeRecord.FreezeStartDate > DateTime.UtcNow)
+                {
+                    _context.SubscriptionFreezeHistories.Remove(freezeRecord);
+                }
+                else
+                {
+                    // Case 2: If the freeze is already active, update the freeze end date to today + 1
+                    freezeRecord.FreezeEndDate = DateTime.UtcNow.Date.AddDays(1);
+
+                    // Unfreeze the subscription if it's currently frozen
+                    var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
+                    if (subscription != null && subscription.IsFrozen == true)
+                    {
+                        subscription.IsFrozen = false;
+                        _context.Subscriptions.Update(subscription);
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Scheduled freeze has been canceled." });
             }
-
-            _context.SubscriptionFreezeHistories.Remove(freezeRecord);
-            await _context.SaveChangesAsync();
-
-            return Ok("Scheduled freeze has been canceled.");
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
+
 
         [HttpGet("scheduled-freezes/{subscriptionId}")]
         public async Task<IActionResult> GetScheduledFreezes(Guid subscriptionId)
@@ -315,6 +340,7 @@ namespace Cold_Storage_GO.Controllers
                 .OrderBy(f => f.FreezeStartDate)
                 .Select(f => new
                 {
+                    FreezeId = f.FreezeId,  // ✅ Include FreezeId
                     StartDate = f.FreezeStartDate,
                     EndDate = f.FreezeEndDate
                 })
