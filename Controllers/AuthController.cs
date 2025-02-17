@@ -543,7 +543,7 @@ public class AuthController : ControllerBase
         }
 
         // Check if the session expired
-        var sessionExpiry = session.LastAccessed.AddSeconds(60);
+        var sessionExpiry = session.LastAccessed.AddMinutes(30);
         if (DateTime.UtcNow > sessionExpiry)
         {
             // Mark session as inactive and remove it
