@@ -198,6 +198,37 @@ namespace Cold_Storage_GO.Controllers
             return Ok(recipes);
         }
 
+        [HttpGet("my-recipes")]
+        public async Task<IActionResult> GetMyRecipes()
+        {
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+                return Unauthorized("Session not found.");
+
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+            if (userSession == null)
+                return Unauthorized("Invalid session.");
+
+            var recipes = await _context.Recipes
+                .Where(r => r.UserId == userSession.UserId)
+                .Select(recipe => new
+                {
+                    recipe.RecipeId,
+                    recipe.Name,
+                    recipe.Description,
+                    recipe.Visibility,  // ✅ Includes visibility for private/public logic
+                    recipe.Upvotes,
+                    recipe.Downvotes,
+                    CoverImages = recipe.CoverImages != null
+                        ? recipe.CoverImages.Select(img => Convert.ToBase64String(img.ImageData)).ToList()
+                        : new List<string>() // ✅ Prevents null errors
+                })
+                .ToListAsync();
+
+            return Ok(recipes);
+        }
 
 
         [HttpPost("{id}/vote")]

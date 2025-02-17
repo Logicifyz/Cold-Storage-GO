@@ -233,6 +233,67 @@ namespace Cold_Storage_GO.Controllers
             return Ok(comments);
         }
 
+        [HttpGet("my-comments")]
+        public async Task<IActionResult> GetMyComments()
+        {
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+                return Unauthorized("Session not found.");
+
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+            if (userSession == null)
+                return Unauthorized("Invalid session.");
+
+            var comments = await _context.Comments
+                .Where(c => c.UserId == userSession.UserId)
+                .Select(comment => new
+                {
+                    comment.CommentId,
+                    comment.Content,
+                    comment.CreatedAt,
+                    comment.RecipeId,
+                    comment.DiscussionId,
+                    comment.ParentCommentId,
+
+                    // Fetch Parent Comment details (if exists)
+                    ParentComment = comment.ParentCommentId != null
+                        ? _context.Comments
+                            .Where(p => p.CommentId == comment.ParentCommentId)
+                            .Select(p => new { p.CommentId, p.Content, Username = p.User.Username })
+                            .FirstOrDefault()
+                        : null,
+
+                    // Fetch Discussion Title if comment is on a discussion
+                    DiscussionTitle = comment.DiscussionId != null
+                        ? _context.Discussions
+                            .Where(d => d.DiscussionId == comment.DiscussionId)
+                            .Select(d => d.Title)
+                            .FirstOrDefault()
+                        : null,
+
+                    // Fetch Recipe Title if comment is on a recipe
+                    RecipeTitle = comment.RecipeId != null
+                        ? _context.Recipes
+                            .Where(r => r.RecipeId == comment.RecipeId)
+                            .Select(r => r.Name)
+                            .FirstOrDefault()
+                        : null,
+
+                    comment.User.Username,  // Username of the person who posted the comment
+
+                    // Upvotes & Downvotes count
+                    Upvotes = _context.CommentVotes.Count(v => v.CommentId == comment.CommentId && v.VoteType == 1),
+                    Downvotes = _context.CommentVotes.Count(v => v.CommentId == comment.CommentId && v.VoteType == -1),
+                })
+                .OrderByDescending(c => c.CreatedAt) // Sort newest first
+                .ToListAsync();
+
+            return Ok(comments);
+        }
+
+
 
 
         // ✅ PUT (Update) a Comment (Only by Owner)

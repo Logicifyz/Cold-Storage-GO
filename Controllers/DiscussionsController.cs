@@ -184,6 +184,39 @@ namespace Cold_Storage_GO.Controllers
             return Ok(discussions);
         }
 
+        [HttpGet("my-discussions")]
+        public async Task<IActionResult> GetMyDiscussions()
+        {
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+                return Unauthorized("Session not found.");
+
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+            if (userSession == null)
+                return Unauthorized("Invalid session.");
+
+            var discussions = await _context.Discussions
+                .Where(d => d.UserId == userSession.UserId)
+                .Select(discussion => new
+                {
+                    discussion.DiscussionId,
+                    discussion.Title,
+                    discussion.Content,
+                    discussion.Visibility,  // ✅ Includes visibility for private/public logic
+                    discussion.Upvotes,
+                    discussion.Downvotes,
+                    CoverImages = discussion.CoverImages != null
+                        ? discussion.CoverImages.Select(img => Convert.ToBase64String(img.ImageData)).ToList()
+                        : new List<string>()
+                })
+                .ToListAsync();
+
+            return Ok(discussions);
+        }
+
+
 
         [HttpPost("{id}/vote")]
         public async Task<IActionResult> VoteDiscussion(Guid id, [FromBody] int voteType)
