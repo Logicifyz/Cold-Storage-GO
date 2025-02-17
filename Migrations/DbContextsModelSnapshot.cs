@@ -582,6 +582,9 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");
 
+                    b.Property<decimal>("VoucherDiscount")
+                        .HasColumnType("decimal(18,2)");
+
                     b.HasKey("Id");
 
                     b.ToTable("orders");

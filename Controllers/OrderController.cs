@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿// OrderController.cs
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Cold_Storage_GO.Models;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
-using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
@@ -144,6 +145,7 @@ namespace Cold_Storage_GO.Controllers
             UpdateOrderStatusStatic(order);
         }
 
+        // POST: api/Order
         [HttpPost]
         public async Task<IActionResult> PostOrder([FromBody] OrderRequest orderRequest)
         {
@@ -167,7 +169,7 @@ namespace Cold_Storage_GO.Controllers
             if (cartItems == null || !cartItems.Any())
                 return BadRequest("Cart is empty.");
 
-            // Build OrderItems and calculate the total.
+            // Build OrderItems and calculate the subtotal.
             var orderItems = new System.Collections.Generic.List<OrderItem>();
             int subtotal = 0;
             foreach (var item in cartItems)
@@ -183,13 +185,58 @@ namespace Cold_Storage_GO.Controllers
 
             decimal shippingCost = orderRequest.ShippingCost;
             decimal tax = orderRequest.Tax;
-            decimal totalAmount = subtotal + shippingCost + tax;
+
+            // --- Voucher Application Logic ---
+            int voucherDiscount = 0;
+            if (orderRequest.RedemptionId.HasValue)
+            {
+                // Retrieve the redemption record based on the provided redemption id.
+                var redemption = await _dbContext.Redemptions.FirstOrDefaultAsync(r => r.RedemptionId == orderRequest.RedemptionId.Value);
+                if (redemption == null)
+                    return BadRequest("Invalid redemption id.");
+
+                if (!redemption.RewardUsable)
+                    return BadRequest("Voucher has already been used or is no longer valid.");
+
+                // Get the associated reward to determine the voucher discount type.
+                var reward = await _dbContext.Rewards.FindAsync(redemption.RewardId);
+                if (reward == null)
+                    return BadRequest("Invalid reward associated with voucher.");
+
+                // Determine discount amount based on reward type.
+                switch (reward.RewardType)
+                {
+                    case "Voucher5":
+                        voucherDiscount = 5;
+                        break;
+                    case "Voucher10":
+                        voucherDiscount = 10;
+                        break;
+                    case "Voucher15":
+                        voucherDiscount = 15;
+                        break;
+                    case "Voucher20":
+                        voucherDiscount = 20;
+                        break;
+                    default:
+                        voucherDiscount = 0;
+                        break;
+                }
+
+                // Mark the voucher as used so it cannot be applied again.
+                redemption.RewardUsable = false;
+                _dbContext.Redemptions.Update(redemption);
+            }
+            // Adjust the subtotal by applying the voucher discount (ensure it does not go negative).
+            int finalSubtotal = Math.Max(subtotal - voucherDiscount, 0);
+            decimal totalAmount = finalSubtotal + shippingCost + tax;
 
             // Set OrderTime to now.
             DateTime orderTime = DateTime.Now;
             // By default, set ShipTime to OrderTime + 30 seconds using local time if not provided.
             var defaultShipTime = orderTime.AddSeconds(30);
 
+            // Create order. (Assumes Order model has a VoucherDiscount property to show the applied discount.)
             var order = new Order
             {
                 OrderType = orderRequest.OrderType,
@@ -198,10 +245,11 @@ namespace Cold_Storage_GO.Controllers
                 OrderStatus = "Preparing",
                 OrderTime = orderTime, // local time
                 ShipTime = orderRequest.ShipTime ?? defaultShipTime,
-                Subtotal = subtotal,
+                Subtotal = finalSubtotal,
                 ShippingCost = shippingCost,
                 Tax = tax,
                 TotalAmount = totalAmount,
+                VoucherDiscount = voucherDiscount, // new property for showing voucher discount
                 OrderItems = orderItems
             };
 
@@ -364,6 +412,8 @@ namespace Cold_Storage_GO.Controllers
             public decimal ShippingCost { get; set; }
             [Required]
             public decimal Tax { get; set; }
+            // Optional voucher redemption id provided at checkout.
+            public Guid? RedemptionId { get; set; }
         }
 
         public class OrderUpdateRequest
