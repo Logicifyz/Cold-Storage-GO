@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.ComponentModel.DataAnnotations;
 
+
 namespace Cold_Storage_GO.Controllers
 {
     [AllowAnonymous]
@@ -157,6 +158,7 @@ namespace Cold_Storage_GO.Controllers
         // Request model to accept the password in the request body
 
 
+    
 
 
         [HttpPut("update-profile")]
@@ -561,6 +563,72 @@ namespace Cold_Storage_GO.Controllers
 
             return Ok(followersList);
         }
+
+        [Authorize(Roles = "Staff,Admin")]
+        [HttpGet("all-users")]
+        public async Task<IActionResult> GetAllUsers()
+        {
+            try
+            {
+                var users = await _context.Users
+                    .Select(u => new
+                    {
+                        u.UserId,
+                        u.Email
+                    })
+                    .ToListAsync();
+
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching users");
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        [HttpGet("user/{userId}")]
+        public async Task<IActionResult> GetProfileByUserId(string userId)
+        {
+            // Convert the incoming userId string to a Guid.
+            if (!Guid.TryParse(userId, out Guid parsedUserId))
+            {
+                return BadRequest("Invalid user id.");
+            }
+
+            // Retrieve the user by parsedUserId
+            var user = await _context.Users
+                .Include(u => u.UserAdministration)
+                .FirstOrDefaultAsync(u => u.UserId == parsedUserId);
+            if (user == null)
+            {
+                return NotFound("User not found.");
+            }
+            // Retrieve the user profile associated with this user
+            var userProfile = await _context.UserProfiles
+                .FirstOrDefaultAsync(up => up.UserId == parsedUserId);
+            if (userProfile == null)
+            {
+                return NotFound("User profile not found.");
+            }
+
+            bool isGoogleLogin = user.PasswordHash == "google-login";
+            var profileResponse = new
+            {
+                UserId = user.UserId,
+                Username = user.Username,
+                Email = user.Email,
+                FullName = userProfile.FullName,
+                PhoneNumber = userProfile.PhoneNumber,
+                StreetAddress = userProfile.StreetAddress,
+                PostalCode = userProfile.PostalCode,
+                ProfilePicture = userProfile.ProfilePicture,
+                Verified = user.UserAdministration.Verified,
+                IsGoogleLogin = isGoogleLogin
+            };
+            return Ok(profileResponse);
+        }
+
 
 
         public class DeleteAccountRequest
