@@ -59,6 +59,7 @@ builder.Logging.AddConsole();
 builder.Services.AddSingleton<GoogleAuthService>();
 builder.Services.AddLogging();
 builder.Services.AddSingleton<WebSocketService>();
+builder.Services.AddScoped<NotificationService>();
 
 // Register WebSocketManager as a scoped service
 builder.Services.AddScoped<WebSocketManager>();

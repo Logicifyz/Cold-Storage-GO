@@ -79,7 +79,7 @@ namespace Cold_Storage_GO.Middleware
                         return;
                     }
 
-                    var sessionExpiry = userSession.LastAccessed.AddSeconds(60);
+                    var sessionExpiry = userSession.LastAccessed.AddMinutes(30);
                     if (DateTime.UtcNow > sessionExpiry)
                     {
                         _logger.LogWarning("User session expired for SessionId: {SessionId}", sessionId);

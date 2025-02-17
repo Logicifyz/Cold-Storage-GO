@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Cold_Storage_GO.Middleware;
 using Microsoft.AspNetCore.Authorization;
+using Cold_Storage_GO.Services;
 
 namespace Cold_Storage_GO.Controllers
 {
@@ -16,11 +17,14 @@ namespace Cold_Storage_GO.Controllers
     public class SupportController : ControllerBase
     {
         private readonly DbContexts _context;
+        private readonly NotificationService _notificationService;
 
-        public SupportController(DbContexts context)
+        public SupportController(DbContexts context, NotificationService notificationService)
         {
             _context = context;
+            _notificationService = notificationService;
         }
+
 
         [HttpPost("OpenTicket")]
         public async Task<IActionResult> OpenTicket([FromForm] OpenTicketRequest request)
@@ -84,9 +88,20 @@ namespace Cold_Storage_GO.Controllers
 
                 await _context.SaveChangesAsync(); // Save images to TicketImage table
             }
+            string notificationTitle = "New Support Ticket Created";
+            string notificationContent = $"Your ticket '{ticket.Subject}' has been created successfully.";
+            await _notificationService.CreateNotification(session.UserId, "Support", notificationTitle, notificationContent);
 
-            // Analytics: SupportTicketEvent has already been created above for tracking.
-
+            // Send notification email
+            try
+            {
+                await _notificationService.SendNotificationEmail(session.UserId, notificationTitle, notificationContent);
+            }
+            catch (Exception ex)
+            {
+                // Handle any email sending issues (optional)
+                Console.WriteLine($"Error sending email: {ex.Message}");
+            }
             return Ok(new { TicketId = ticket.TicketId, Message = "Ticket opened successfully." });
         }
 
