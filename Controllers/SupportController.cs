@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Cold_Storage_GO.Middleware;
 using Microsoft.AspNetCore.Authorization;
+using Cold_Storage_GO.Services;
 
 namespace Cold_Storage_GO.Controllers
 {
@@ -16,11 +17,14 @@ namespace Cold_Storage_GO.Controllers
     public class SupportController : ControllerBase
     {
         private readonly DbContexts _context;
+        private readonly NotificationService _notificationService;
 
-        public SupportController(DbContexts context)
+        public SupportController(DbContexts context, NotificationService notificationService)
         {
             _context = context;
+            _notificationService = notificationService;
         }
+
 
         [HttpPost("OpenTicket")]
         public async Task<IActionResult> OpenTicket([FromForm] OpenTicketRequest request)
@@ -28,6 +32,9 @@ namespace Cold_Storage_GO.Controllers
             // Retrieve UserSessionId from the session middleware
             var userSessionId = HttpContext.Request.Cookies["SessionId"];
             var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.UserSessionId == userSessionId);
+            var singaporeTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+            var singaporeTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, singaporeTimeZone);
+
 
             if (session == null || !session.IsActive)
             {
@@ -43,7 +50,7 @@ namespace Cold_Storage_GO.Controllers
                 Details = request.Details,
                 Priority = "Unassigned",
                 Status = "Unassigned",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = singaporeTime  // SGT time
             };
             var ticketEvent = new SupportTicketEvent
             {
@@ -72,7 +79,7 @@ namespace Cold_Storage_GO.Controllers
                         {
                             TicketId = ticket.TicketId,
                             ImageData = memoryStream.ToArray(),
-                            UploadedAt = DateTime.UtcNow
+                            UploadedAt = singaporeTime
                         };
 
                         _context.TicketImage.Add(ticketImage);
@@ -81,18 +88,31 @@ namespace Cold_Storage_GO.Controllers
 
                 await _context.SaveChangesAsync(); // Save images to TicketImage table
             }
+            string notificationTitle = "New Support Ticket Created";
+            string notificationContent = $"Your ticket '{ticket.Subject}' has been created successfully.";
+            await _notificationService.CreateNotification(session.UserId, "Support", notificationTitle, notificationContent);
 
+            // Send notification email
+            try
+            {
+                await _notificationService.SendNotificationEmail(session.UserId, notificationTitle, notificationContent);
+            }
+            catch (Exception ex)
+            {
+                // Handle any email sending issues (optional)
+                Console.WriteLine($"Error sending email: {ex.Message}");
+            }
             return Ok(new { TicketId = ticket.TicketId, Message = "Ticket opened successfully." });
         }
 
 
         [HttpGet("GetTickets")]
         public async Task<IActionResult> GetTickets(
-    [FromQuery] string status = null,
-    [FromQuery] string priority = null,
-    [FromQuery] string category = null,
-    [FromQuery] string subject = null,
-    [FromQuery] Guid? ticketId = null) // Added ticketId filter
+            [FromQuery] string status = null,
+            [FromQuery] string priority = null,
+            [FromQuery] string category = null,
+            [FromQuery] string subject = null,
+            [FromQuery] Guid? ticketId = null) // Added ticketId filter
         {
             // Retrieve UserSessionId from the session using UserSessionId from headers
             var userSessionId = HttpContext.Request.Cookies["SessionId"];

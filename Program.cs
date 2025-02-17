@@ -59,6 +59,7 @@ builder.Logging.AddConsole();
 builder.Services.AddSingleton<GoogleAuthService>();
 builder.Services.AddLogging();
 builder.Services.AddSingleton<WebSocketService>();
+builder.Services.AddScoped<NotificationService>();
 
 // Register WebSocketManager as a scoped service
 builder.Services.AddScoped<WebSocketManager>();
@@ -89,6 +90,11 @@ builder.Services.AddSwaggerGen(c =>
             new string[] {}
         }
     });
+});
+
+// In Startup.cs or Program.cs
+builder.Services.AddControllers().AddJsonOptions(options => {
+    options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
 });
 
 // Add authentication and authorization

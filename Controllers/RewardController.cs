@@ -85,5 +85,21 @@ namespace Cold_Storage_GO.Controllers
 
             return NoContent();
         }
+
+        // GET: api/Rewards/redemption-counts
+        [HttpGet("redemption-counts")]
+        public async Task<IActionResult> GetRedemptionCounts()
+        {
+            var redemptionCounts = await _context.Redemptions
+                .GroupBy(r => r.RewardId)
+                .Select(g => new
+                {
+                    RewardId = g.Key,
+                    RedemptionCount = g.Count()
+                })
+                .ToListAsync();
+
+            return Ok(redemptionCounts);
+        }
     }
 }

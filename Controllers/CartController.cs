@@ -73,7 +73,7 @@ namespace Cold_Storage_GO.Controllers
                     MealKitId = request.MealKitId,
                     Quantity = request.Quantity
                 };
-                _dbContext.CartEvents.Add(cartEvent);             
+                _dbContext.CartEvents.Add(cartEvent);
 
                 // Serialize and save back to session
                 userSession.Data = JsonSerializer.Serialize(cartItems);
@@ -135,11 +135,64 @@ namespace Cold_Storage_GO.Controllers
                 ci.Quantity,
                 ci.Price,
                 TotalPrice = ci.Quantity * ci.Price,
-                MealKit = mealKitDetails.FirstOrDefault(mk => mk.MealKitId == ci.MealKitId) // Ensure MealKit is not null
+                MealKit = mealKitDetails.FirstOrDefault(mk => mk.MealKitId == ci.MealKitId)
             }).Where(ci => ci.MealKit != null);
 
-            // Return the formatted response
             return Ok(cartWithDetails);
+        }
+
+        // NEW: DELETE endpoint to remove a cart item by MealKitId.
+        [HttpDelete("{mealKitId}")]
+        public async Task<IActionResult> RemoveFromCart(Guid mealKitId)
+        {
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                return Unauthorized("Session ID is missing.");
+            }
+
+            var userSession = await _dbContext.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+            if (userSession == null)
+            {
+                return Unauthorized("Invalid or expired session.");
+            }
+
+            try
+            {
+                if (string.IsNullOrEmpty(userSession.Data))
+                {
+                    return NotFound("Cart is empty.");
+                }
+
+                var cartItems = JsonSerializer.Deserialize<List<CartItem>>(userSession.Data);
+                var itemToRemove = cartItems.FirstOrDefault(ci => ci.MealKitId == mealKitId);
+                if (itemToRemove == null)
+                {
+                    return NotFound("Item not found in cart.");
+                }
+
+                cartItems.Remove(itemToRemove);
+                userSession.Data = JsonSerializer.Serialize(cartItems);
+                userSession.LastAccessed = DateTime.UtcNow;
+                _dbContext.UserSessions.Update(userSession);
+                await _dbContext.SaveChangesAsync();
+
+                return Ok("Item removed from cart.");
+            }
+            catch (JsonException)
+            {
+                userSession.Data = "[]";
+                userSession.LastAccessed = DateTime.UtcNow;
+                _dbContext.UserSessions.Update(userSession);
+                await _dbContext.SaveChangesAsync();
+                return BadRequest("Session data was corrupted and has been reset. Please try again.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error removing cart item: {ex.Message}");
+                return StatusCode(500, "An error occurred while removing the cart item.");
+            }
         }
 
         public class CartItemRequest
@@ -153,6 +206,5 @@ namespace Cold_Storage_GO.Controllers
             [JsonPropertyName("price")]
             public int Price { get; set; }
         }
-
     }
 }

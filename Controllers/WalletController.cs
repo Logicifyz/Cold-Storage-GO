@@ -101,6 +101,9 @@ namespace Cold_Storage_GO.Controllers
                 return NotFound("Wallet not found.");
 
             wallet.CoinsEarned += request.Coins;
+
+
+
             await _context.SaveChangesAsync();
 
             return Ok(wallet);
@@ -184,12 +187,14 @@ namespace Cold_Storage_GO.Controllers
             };
             var redemptionEvent = new RewardRedemptionEvent
             {
-                RedemptionId = redemption.RedemptionId, // from your existing redemption record
+                RedemptionId = redemption.RedemptionId,
                 UserId = userId,
                 RewardId = rewardId,
+                RedeemedAt = DateTime.UtcNow,
                 ExpiryDate = reward.ExpiryDate,
-                RewardUsable = true // or false based on your business logic
+                RewardUsable = true
             };
+      
 
             _context.RewardRedemptionEvents.Add(redemptionEvent);       
             _context.Redemptions.Add(redemption);
