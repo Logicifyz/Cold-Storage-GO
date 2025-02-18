@@ -3,6 +3,7 @@ using Cold_Storage_GO.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using System.Text.Json;
+using Newtonsoft.Json;
 
 namespace Cold_Storage_GO.Controllers
 {
@@ -509,12 +510,26 @@ namespace Cold_Storage_GO.Controllers
             }
         }
 
-
-
-        // 4. Update a Recipe
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateRecipe(Guid id, [FromForm] Recipe updatedRecipe, [FromForm] List<IFormFile>? coverImages, [FromForm] List<IFormFile>? instructionImages)
+        public async Task<IActionResult> UpdateRecipe(Guid id,
+        [FromForm] string name,
+        [FromForm] string description,
+        [FromForm] string timeTaken,  // 🛠️ Fix conversion issue
+        [FromForm] string tags,
+        [FromForm] string visibility,
+        [FromForm] string? ingredients,
+        [FromForm] string? instructions,
+        [FromForm] List<IFormFile>? coverImages)
         {
+            if (id == Guid.Empty) return BadRequest("Invalid Recipe ID.");
+
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId)) return Unauthorized("User is not logged in.");
+
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+            if (userSession == null) return Unauthorized("Invalid or expired session.");
+
             var recipe = await _context.Recipes
                 .Include(r => r.Ingredients)
                 .Include(r => r.Instructions)
@@ -523,84 +538,64 @@ namespace Cold_Storage_GO.Controllers
 
             if (recipe == null) return NotFound("Recipe not found.");
 
-            Console.WriteLine("Updating Recipe...");
-            recipe.Name = updatedRecipe.Name;
-            recipe.Description = updatedRecipe.Description;
-            recipe.TimeTaken = updatedRecipe.TimeTaken;
-            recipe.Tags = updatedRecipe.Tags;
-            recipe.Visibility = updatedRecipe.Visibility;
+            // 🔒 Ensure user owns the recipe
+            if (recipe.UserId != userSession.UserId) return Forbid("You do not have permission to edit this recipe.");
 
-            if (coverImages != null)
+            // ✅ Convert timeTaken from string to int
+            if (int.TryParse(timeTaken, out int parsedTimeTaken))
             {
-                _context.RemoveRange(recipe.CoverImages);
-                recipe.CoverImages.Clear();
-
-                foreach (var image in coverImages)
-                {
-                    using (var ms = new MemoryStream())
-                    {
-                        await image.CopyToAsync(ms);
-                        recipe.CoverImages.Add(new RecipeImage
-                        {
-                            ImageId = Guid.NewGuid(),
-                            ImageData = ms.ToArray(),
-                            RecipeId = recipe.RecipeId
-                        });
-                    }
-                }
+                recipe.TimeTaken = parsedTimeTaken;
+            }
+            else
+            {
+                return BadRequest("Invalid timeTaken value. Must be an integer.");
             }
 
-            _context.RecipeIngredients.RemoveRange(recipe.Ingredients);
-            foreach (var ingredient in updatedRecipe.Ingredients)
-            {
-                ingredient.IngredientId = Guid.NewGuid();
-                ingredient.RecipeId = recipe.RecipeId;
-                recipe.Ingredients.Add(ingredient);
-            }
+            // ✅ Update basic recipe details
+            recipe.Name = name;
+            recipe.Description = description;
+            recipe.Tags = tags;
+            recipe.Visibility = visibility;
 
-            _context.RecipeInstructions.RemoveRange(recipe.Instructions);
-            for (int i = 0; i < updatedRecipe.Instructions.Count; i++)
-            {
-                var instruction = updatedRecipe.Instructions[i];
-                instruction.InstructionId = Guid.NewGuid();
-                instruction.RecipeId = recipe.RecipeId;
-
-                if (instructionImages != null && i < instructionImages.Count)
-                {
-                    using (var ms = new MemoryStream())
-                    {
-                        await instructionImages[i].CopyToAsync(ms);
-                        instruction.StepImage = ms.ToArray();
-                    }
-                }
-
-                recipe.Instructions.Add(instruction);
-            }
-
-            _context.Recipes.Update(recipe);
             await _context.SaveChangesAsync();
-
-            Console.WriteLine("Recipe updated successfully.");
-            return NoContent();
+            return Ok(new { message = "Recipe updated successfully!", RecipeId = recipe.RecipeId });
         }
 
-        // 5. Delete a Recipe
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRecipe(Guid id)
         {
-            var recipe = await _context.Recipes
-                .Include(r => r.Ingredients)
-                .Include(r => r.Instructions)
-                .Include(r => r.CoverImages)
-                .FirstOrDefaultAsync(r => r.RecipeId == id);
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId)) return Unauthorized("Session not found.");
 
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+            if (userSession == null) return Unauthorized("Invalid session.");
+
+            var recipe = await _context.Recipes.FindAsync(id);
             if (recipe == null) return NotFound("Recipe not found.");
 
+            // ✅ Ensure user owns the recipe
+            if (recipe.UserId != userSession.UserId)
+            {
+                return Forbid("You do not have permission to delete this recipe.");
+            }
+
+            // ✅ Query and delete related comments separately (to avoid foreign key constraint issues)
+            var relatedComments = await _context.Comments.Where(c => c.RecipeId == id).ToListAsync();
+            _context.Comments.RemoveRange(relatedComments);
+
+            // ✅ Now delete the recipe
             _context.Recipes.Remove(recipe);
             await _context.SaveChangesAsync();
 
-            Console.WriteLine("Recipe deleted successfully.");
-            return NoContent();
+            return Ok(new { message = "Recipe deleted successfully" });
         }
+
+
+
+
+
     }
 }
