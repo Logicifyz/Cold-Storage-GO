@@ -13,10 +13,13 @@ namespace Cold_Storage_GO.Controllers
     {
         private readonly SubscriptionService _subscriptionService;
         private readonly DbContexts _context;  // ✅ Ensure the DbContext is defined here
-        public SubscriptionsController(SubscriptionService subscriptionService, DbContexts context)
+        private readonly NotificationService _notificationService;
+
+        public SubscriptionsController(SubscriptionService subscriptionService, DbContexts context, NotificationService notificationService)
         {
             _subscriptionService = subscriptionService;
             _context = context;  // ✅ Properly injected here
+            _notificationService = notificationService;
         }
 
         [HttpGet("user")]
@@ -75,6 +78,10 @@ namespace Cold_Storage_GO.Controllers
                 });
                 await _context.SaveChangesAsync();
             }
+            string notificationTitle = "New Subscription Created";
+            string notificationContent = $"Your Subscription has been created successfully.";
+            await _notificationService.CreateNotification(request.UserId, "Support", notificationTitle, notificationContent);
+
             return Ok("Subscription created successfully");
         }
 
@@ -248,6 +255,7 @@ namespace Cold_Storage_GO.Controllers
         [HttpPost("schedule-freeze/{subscriptionId}")]
         public async Task<IActionResult> ScheduleFreeze(Guid subscriptionId, [FromBody] ScheduleFreezeRequest request)
         {
+
             var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
             if (subscription == null) return NotFound("Subscription not found.");
             DateTime minFreezeStartDate = subscription.StartDate.AddDays(1);
@@ -422,10 +430,39 @@ namespace Cold_Storage_GO.Controllers
             });
         }
 
+        [HttpGet("analytics/cancellation-rate")]
+        public async Task<IActionResult> GetCancellationRate()
+        {
+            var cancellationRate = await _subscriptionService.GetCancellationRateAsync();
+            return Ok(new { cancellationRate });
+        }
 
+        [HttpGet("analytics/frozen-rate")]
+        public async Task<IActionResult> GetFrozenSubscriptionRate()
+        {
+            var frozenRate = await _subscriptionService.GetFrozenSubscriptionRateAsync();
+            return Ok(new { frozenRate });
+        }
 
+        [HttpGet("analytics/popular-choices")]
+        public async Task<IActionResult> GetPopularSubscriptionChoices()
+        {
+            var popularChoices = await _subscriptionService.GetPopularSubscriptionChoicesAsync();
+            return Ok(popularChoices);
+        }
 
+        [HttpGet("analytics/popular-types")]
+        public async Task<IActionResult> GetPopularSubscriptionTypes()
+        {
+            var popularTypes = await _subscriptionService.GetPopularSubscriptionTypesAsync();
+            return Ok(popularTypes);
+        }
 
-
+        [HttpGet("analytics/summary")]
+        public async Task<IActionResult> GetSubscriptionSummary()
+        {
+            var summary = await _subscriptionService.GetSubscriptionSummaryAsync();
+            return Ok(summary);
+        }
     }
 }

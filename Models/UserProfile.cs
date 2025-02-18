@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace Cold_Storage_GO.Models
 {
@@ -14,6 +15,8 @@ namespace Cold_Storage_GO.Models
 
         // Foreign key linking to User
         public Guid UserId { get; set; }
+        [JsonIgnore] // Ignore this property during serialization
+
         public User User { get; set; }
         // Subscription status
         [Required]

@@ -25,17 +25,20 @@ namespace Cold_Storage_GO.Controllers
         public StripeController(
         IConfiguration config,
         SubscriptionServiceApp subscriptionService,
-        ILogger<StripeController> logger) // ✅ Injecting the logger correctly
+        ILogger<StripeController> logger,
+        DbContexts context) // ✅ Injecting the logger correctly
         {
             _config = config;
             _subscriptionService = subscriptionService;
             _logger = logger;  // ✅ Proper assignment of logger
+            _context = context; // Initialize DbContexts
             StripeConfiguration.ApiKey = _config["Stripe:SecretKey"];
         }
 
         [HttpPost("create-checkout-session")]
-        public IActionResult CreateCheckoutSession([FromBody] CreateSubscriptionRequest request)
+        public async Task<IActionResult> CreateCheckoutSessionAsync([FromBody] CreateSubscriptionRequest request)
         {
+   
             var options = new SessionCreateOptions
             {
                 PaymentMethodTypes = new List<string> { "card" },
@@ -70,7 +73,10 @@ namespace Cold_Storage_GO.Controllers
             { "price", request.Price.ToString() }
         }
             };
-
+            if (!string.IsNullOrEmpty(request.DiscountCode))
+            {
+                options.Metadata["discountCode"] = request.DiscountCode;
+            }
             var service = new SessionService();
             var session = service.Create(options);
             _logger.LogInformation("✅ Checkout session created with metadata.");
@@ -80,6 +86,8 @@ namespace Cold_Storage_GO.Controllers
         [HttpPost("webhook")]
         public async Task<IActionResult> HandleStripeWebhook()
         {
+            var userSessionId = HttpContext.Request.Cookies["SessionId"];
+            var userSession = await _context.UserSessions.FirstOrDefaultAsync(s => s.UserSessionId == userSessionId);
             var json = await new StreamReader(HttpContext.Request.Body).ReadToEndAsync();
             try
             {
@@ -103,6 +111,36 @@ namespace Cold_Storage_GO.Controllers
                     }
 
                     var userId = Guid.Parse(metadata["userId"]);
+
+                    // ✅ Invalidate Discount Code (If Provided)
+                    if (metadata.ContainsKey("discountCode"))
+                    {
+                        var discountCode = metadata["discountCode"];
+
+                        // Convert discountCode to Guid
+                        if (Guid.TryParse(discountCode, out var discountCodeGuid))
+                        {
+                            var redemption = await _context.Redemptions
+                                .FirstOrDefaultAsync(r => r.RedemptionId == discountCodeGuid);
+
+                            if (redemption != null && redemption.RewardUsable)
+                            {
+                                redemption.RewardUsable = false; // Mark the voucher as used
+                                _context.Redemptions.Update(redemption);
+                                await _context.SaveChangesAsync();
+
+                                _logger.LogInformation($"✅ Discount code {discountCode} has been invalidated.");
+                            }
+                            else
+                            {
+                                _logger.LogWarning($"⚠️ Discount code {discountCode} is invalid or already used.");
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning($"⚠️ Discount code {discountCode} is not a valid GUID.");
+                        }
+                    }
 
                     try
                     {
