@@ -41,6 +41,7 @@ namespace Cold_Storage_GO
         public DbSet<AIResponseLog> AIResponseLogs { get; set; }
         public DbSet<UserRecipeRequest> UserRecipeRequests { get; set; }
         public DbSet<AIRecipeRequest> AIRecipeRequests { get; set; }
+        public DbSet<AIRecipeImage> AIRecipeImages { get; set; }
         public DbSet<FinalDish> FinalDishes { get; set; }
         public DbSet<Subscription> Subscriptions { get; set; }
         public DbSet<Order> Orders { get; set; }
@@ -192,6 +193,19 @@ namespace Cold_Storage_GO
                 .WithMany()
                 .HasForeignKey(ai => ai.FinalRecipeId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // ?? Ensure AIRecipeImage links to AI Recipes & Users
+            modelBuilder.Entity<AIRecipeImage>()
+               .HasOne(img => img.FinalDish)
+               .WithMany(dish => dish.AIImages)
+               .HasForeignKey(img => img.FinalDishId)
+               .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<AIRecipeImage>()
+                .HasOne<User>() // Image belongs to a specific user
+                .WithMany()
+                .HasForeignKey(img => img.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // ?? Ensure ResponseType in AIResponseLog is stored as a string instead of an int
             modelBuilder.Entity<AIResponseLog>()

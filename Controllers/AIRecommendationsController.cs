@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace Cold_Storage_GO.Controllers
 {
@@ -111,13 +112,15 @@ namespace Cold_Storage_GO.Controllers
                 UserId = userRequest.UserId,
                 Message = responseMessage,
                 Type = responseType,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow,
+                UserPrompt = userRequest.FreeText
             };
 
             _context.AIResponseLogs.Add(aiResponse);
             await _context.SaveChangesAsync();
 
-            // ✅ Handle different response types
+
+            // ✅ Handle different response types 
             if (responseType == ResponseType.Recipe)
             {
                 var finalDish = ParseFinalDish(responseMessage);
@@ -128,10 +131,16 @@ namespace Cold_Storage_GO.Controllers
                     await _context.SaveChangesAsync();
                 }
 
+                // ✅ Fetch the latest stored FinalDish
                 var latestFinalDish = await _context.FinalDishes
                     .Where(d => d.UserId == userRequest.UserId)
                     .OrderByDescending(d => d.CreatedAt)
                     .FirstOrDefaultAsync();
+
+                // ✅ Update AIResponseLog Instead of Adding Again
+                aiResponse.FinalRecipeId = latestFinalDish?.DishId;  // ✅ Store FinalDish ID
+                _context.AIResponseLogs.Update(aiResponse);  // ✅ Use Update Instead of Add
+                await _context.SaveChangesAsync();  // ✅ Now we save only the update
 
                 return Ok(new
                 {
@@ -139,6 +148,7 @@ namespace Cold_Storage_GO.Controllers
                     recipe = latestFinalDish
                 });
             }
+
             else if (responseType == ResponseType.Redirect || responseType == ResponseType.FollowUp)
             {
                 Console.WriteLine($"DEBUG: Handling responseType - {responseType}");
@@ -361,6 +371,194 @@ namespace Cold_Storage_GO.Controllers
 
             return Ok(latestFinalDish);
         }
+
+        [HttpGet("GetRecipe/{id}")]
+        public async Task<IActionResult> GetRecipeById(Guid id)
+        {
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+                return Unauthorized("Session not found.");
+
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+            if (userSession == null)
+                return Unauthorized("Invalid session.");
+
+            var recipe = await _context.FinalDishes
+                .Where(d => d.UserId == userSession.UserId && d.DishId == id)
+                .FirstOrDefaultAsync();
+
+            if (recipe == null)
+                return NotFound("Recipe not found.");
+
+            // ✅ Fetch UserPrompt from AIResponseLogs
+            var aiResponse = await _context.AIResponseLogs
+                .Where(r => r.FinalRecipeId == recipe.DishId)
+                .FirstOrDefaultAsync();
+
+            // ✅ Fetch Images from AIRecipeImage
+            var images = await _context.AIRecipeImages
+                .Where(img => img.FinalDishId == recipe.DishId)
+                .Select(img => Convert.ToBase64String(img.ImageData))
+                .ToListAsync();
+
+            return Ok(new
+            {
+                dishId = recipe.DishId,
+                title = recipe.Title,
+                description = recipe.Description,
+                ingredients = recipe.Ingredients,
+                steps = recipe.Steps,
+                nutrition = recipe.Nutrition,
+                servings = recipe.Servings,
+                cookingTime = recipe.CookingTime,
+                difficulty = recipe.Difficulty,
+                userPrompt = aiResponse?.UserPrompt,
+                images // ✅ Now returns images along with recipe details
+            });
+        }
+
+
+
+
+
+        [HttpPost("SaveRecipe")]
+        public async Task<IActionResult> SaveRecipe([FromBody] Guid dishId)
+        {
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+                return Unauthorized("Session not found.");
+
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+            if (userSession == null)
+                return Unauthorized("Invalid session.");
+
+            var finalDish = await _context.FinalDishes
+                .FirstOrDefaultAsync(d => d.DishId == dishId && d.UserId == userSession.UserId);
+
+            if (finalDish == null)
+                return NotFound("Recipe not found.");
+
+            finalDish.IsSaved = true;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Recipe saved successfully!" });
+        }
+
+
+
+        [HttpPost("UnsaveRecipe")]
+        public async Task<IActionResult> UnsaveRecipe([FromBody] Guid dishId)
+        {
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+                return Unauthorized("Session not found.");
+
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+            if (userSession == null)
+                return Unauthorized("Invalid session.");
+
+            var finalDish = await _context.FinalDishes
+                .FirstOrDefaultAsync(d => d.DishId == dishId && d.UserId == userSession.UserId);
+
+            if (finalDish == null)
+                return NotFound("Recipe not found.");
+
+            finalDish.IsSaved = false;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Recipe unsaved successfully!" });
+        }
+
+
+        [HttpGet("GetAllSavedRecipes")]
+        public async Task<IActionResult> GetAllSavedRecipes()
+        {
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+                return Unauthorized("Session not found.");
+
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+            if (userSession == null)
+                return Unauthorized("Invalid session.");
+
+            var savedRecipes = await _context.FinalDishes
+                .Where(d => d.UserId == userSession.UserId && d.IsSaved)
+                .Select(dish => new
+                {
+                    dish.DishId,
+                    dish.Title,
+                    dish.Description,
+                    dish.CreatedAt,
+
+                    // ✅ Fetch Image if available
+                    Image = _context.AIRecipeImages
+                        .Where(img => img.FinalDishId == dish.DishId)
+                        .Select(img => Convert.ToBase64String(img.ImageData))
+                        .FirstOrDefault()
+                })
+                .OrderByDescending(d => d.CreatedAt)
+                .ToListAsync();
+
+            return Ok(savedRecipes);
+        }
+
+
+
+        [HttpPost("UploadRecipeImage")]
+        [Consumes("multipart/form-data")] // ✅ Fix for Swagger & FormData
+        public async Task<IActionResult> UploadRecipeImage([FromForm] Guid dishId, [FromForm] IFormFile imageFile)
+        {
+            // ✅ Get Session ID from Cookies
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+                return Unauthorized("Session not found.");
+
+            // ✅ Validate User Session
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+            if (userSession == null)
+                return Unauthorized("Invalid session.");
+
+            var userId = userSession.UserId;
+
+            // ✅ Check if the FinalDish exists for this user
+            var finalDish = await _context.FinalDishes
+                .FirstOrDefaultAsync(d => d.DishId == dishId && d.UserId == userId);
+
+            if (finalDish == null)
+                return NotFound("Recipe not found.");
+
+            if (imageFile == null || imageFile.Length == 0)
+                return BadRequest("Invalid image file.");
+
+            using (var memoryStream = new MemoryStream())
+            {
+                await imageFile.CopyToAsync(memoryStream);
+                var imageBytes = memoryStream.ToArray();
+
+                var recipeImage = new AIRecipeImage
+                {
+                    FinalDishId = finalDish.DishId,
+                    UserId = userId,
+                    ImageData = imageBytes
+                };
+
+                _context.AIRecipeImages.Add(recipeImage);
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new { message = "Image uploaded successfully!" });
+        }
+
 
 
 

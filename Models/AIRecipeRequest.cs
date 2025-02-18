@@ -23,5 +23,8 @@ namespace Cold_Storage_GO.Models
         public int? Servings { get; set; }
         public bool NeedsClarification { get; set; } = false;
         public bool TrendingRequest { get; set; } = false;
+
+        [Required]
+        public string UserPrompt { get; set; } = string.Empty;
     }
 }
