@@ -30,22 +30,31 @@ namespace Cold_Storage_GO.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            if (userRequest.UserId == Guid.Empty)
+            // 🔹 Check for Session ID
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
             {
-                Console.WriteLine("WARNING: UserId not provided. Fetching default user...");
-                var defaultUser = await _context.Users.FirstOrDefaultAsync();
-                if (defaultUser == null)
-                {
-                    Console.WriteLine("ERROR: No users exist in the database.");
-                    return BadRequest("No users found in the system.");
-                }
-                userRequest.UserId = defaultUser.UserId;
+                Console.WriteLine("❌ ERROR: No active session found.");
+                return Unauthorized("Session not found. Please log in.");
             }
 
-            var user = await _context.Users.FindAsync(userRequest.UserId);
-            if (user == null)
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+            if (userSession == null)
             {
-                return BadRequest("Invalid UserId. User does not exist.");
+                Console.WriteLine("❌ ERROR: Invalid session.");
+                return Unauthorized("Invalid session. Please log in again.");
+            }
+
+            // ✅ Override userRequest.UserId with session User ID
+            userRequest.UserId = userSession.UserId;
+            Console.WriteLine($"✅ User authenticated via session: {userRequest.UserId}");
+
+            if (userRequest.UserId == Guid.Empty)
+            {
+                Console.WriteLine("WARNING: UserId is empty even after session validation.");
+                return BadRequest("Invalid UserId.");
             }
 
             // ✅ Convert UserRecipeRequest to AIRecipeRequest
@@ -322,17 +331,37 @@ namespace Cold_Storage_GO.Controllers
         [HttpGet("GetLatestRecipe")]
         public async Task<IActionResult> GetLatestRecipe()
         {
+            // 🔹 Check for Session ID
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                Console.WriteLine("❌ ERROR: No active session found.");
+                return Unauthorized("Session not found. Please log in.");
+            }
+
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+            if (userSession == null)
+            {
+                Console.WriteLine("❌ ERROR: Invalid session.");
+                return Unauthorized("Invalid session. Please log in again.");
+            }
+
+            // ✅ Fetch latest recipe ONLY for the logged-in user
             var latestFinalDish = await _context.FinalDishes
+                .Where(d => d.UserId == userSession.UserId)  // Filter by session user
                 .OrderByDescending(d => d.CreatedAt)
                 .FirstOrDefaultAsync();
 
             if (latestFinalDish == null)
             {
-                return NotFound("No recipes found.");
+                return NotFound("No recipes found for this user.");
             }
 
             return Ok(latestFinalDish);
         }
+
 
 
     }
