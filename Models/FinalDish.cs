@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 
 namespace Cold_Storage_GO.Models
 {
@@ -40,6 +41,14 @@ namespace Cold_Storage_GO.Models
         public string Difficulty { get; set; } = "Medium";
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public bool IsSaved { get; set; } = false; // ✅ Tracks saved status
+
+        [JsonIgnore]
+        public List<AIResponseLog>? AIResponses { get; set; } // ✅ Linked AI Responses
+
+        [JsonIgnore]
+        public List<AIRecipeImage>? AIImages { get; set; }
     }
 
     [Owned]

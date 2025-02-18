@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Text.Json.Serialization; // Add this using
+using System.Text.Json.Serialization;
 
 namespace Cold_Storage_GO.Models
 {
@@ -37,6 +37,9 @@ namespace Cold_Storage_GO.Models
         public decimal ShippingCost { get; set; }
         public decimal Tax { get; set; }
         public decimal TotalAmount { get; set; }
+
+        // New column for storing applied voucher discount
+        public decimal VoucherDiscount { get; set; } = 0;
     }
 
     [Table("orderitems")] // Ensures the table is named "orderitems"

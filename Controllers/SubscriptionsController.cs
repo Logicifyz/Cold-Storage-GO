@@ -23,8 +23,8 @@ namespace Cold_Storage_GO.Controllers
         public async Task<IActionResult> GetUserSubscription([FromQuery] Guid userId)
         {
             var subscription = await _context.Subscriptions
-                .Where(s => s.UserId == userId && s.Status != "Canceled") // 🔥 Exclude canceled subscriptions
-                .FirstOrDefaultAsync();
+        .Where(s => s.UserId == userId && s.Status != "Canceled" && s.Status != "Expired") // 🔥 Exclude canceled subscriptions
+        .FirstOrDefaultAsync();
 
             if (subscription == null)
                 return NotFound("Subscription not found.");
@@ -35,7 +35,7 @@ namespace Cold_Storage_GO.Controllers
                 .AnyAsync(f => f.SubscriptionId == subscription.SubscriptionId &&
                                f.FreezeStartDate <= today && f.FreezeEndDate >= today);
 
-            // Update `isFrozen` dynamically if needed
+            // Update isFrozen dynamically if needed
             if (subscription.IsFrozen != isCurrentlyFrozen)
             {
                 subscription.IsFrozen = isCurrentlyFrozen;
@@ -56,8 +56,8 @@ namespace Cold_Storage_GO.Controllers
                 request.SubscriptionType,
                 request.SubscriptionChoice, // New field added here
                 request.Price
-            );
 
+            );
             // Analytics tracking: Log subscription creation event
             var newSubscription = await _context.Subscriptions
                 .Where(s => s.UserId == request.UserId)
@@ -75,7 +75,6 @@ namespace Cold_Storage_GO.Controllers
                 });
                 await _context.SaveChangesAsync();
             }
-
             return Ok("Subscription created successfully");
         }
 
@@ -86,73 +85,7 @@ namespace Cold_Storage_GO.Controllers
             try
             {
                 await _subscriptionService.ToggleAutoRenewalAsync(subscriptionId);
-
-                // Analytics tracking: Log auto-renewal toggle event
-                var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
-                if (subscription != null)
-                {
-                    _context.SubscriptionEvents.Add(new SubscriptionEvent
-                    {
-                        SubscriptionId = subscription.SubscriptionId,
-                        UserId = subscription.UserId,
-                        EventType = "ToggleAutoRenewal",
-                        EventTime = DateTime.UtcNow,
-                        Details = "Auto-Renewal status updated successfully."
-                    });
-                    await _context.SaveChangesAsync();
-                }
-
                 return Ok("Auto-Renewal status updated successfully.");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"Error: {ex.Message}");
-            }
-        }
-
-        // ✅ Freeze Subscription
-        [HttpPut("toggle-freeze/{subscriptionId}")]
-        public async Task<IActionResult> ToggleFreeze(Guid subscriptionId)
-        {
-            try
-            {
-                var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
-                if (subscription == null) return NotFound("Subscription not found.");
-
-                if ((bool)subscription.IsFrozen)
-                {
-                    await _subscriptionService.UnfreezeSubscriptionAsync(subscriptionId);
-
-                    // Analytics tracking: Log unfreeze event
-                    _context.SubscriptionEvents.Add(new SubscriptionEvent
-                    {
-                        SubscriptionId = subscription.SubscriptionId,
-                        UserId = subscription.UserId,
-                        EventType = "Unfreeze",
-                        EventTime = DateTime.UtcNow,
-                        Details = "Subscription unfrozen successfully."
-                    });
-                    await _context.SaveChangesAsync();
-
-                    return Ok("Subscription unfrozen successfully.");
-                }
-                else
-                {
-                    await _subscriptionService.FreezeSubscriptionAsync(subscriptionId);
-
-                    // Analytics tracking: Log freeze event
-                    _context.SubscriptionEvents.Add(new SubscriptionEvent
-                    {
-                        SubscriptionId = subscription.SubscriptionId,
-                        UserId = subscription.UserId,
-                        EventType = "Freeze",
-                        EventTime = DateTime.UtcNow,
-                        Details = "Subscription frozen successfully."
-                    });
-                    await _context.SaveChangesAsync();
-
-                    return Ok("Subscription frozen successfully.");
-                }
             }
             catch (Exception ex)
             {
@@ -166,21 +99,7 @@ namespace Cold_Storage_GO.Controllers
         {
             try
             {
-                // Analytics tracking: Log cancellation event
-                var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
-                if (subscription != null)
-                {
-                    _context.SubscriptionEvents.Add(new SubscriptionEvent
-                    {
-                        SubscriptionId = subscription.SubscriptionId,
-                        UserId = subscription.UserId,
-                        EventType = "Canceled",
-                        EventTime = DateTime.UtcNow,
-                        Details = "Subscription has been successfully canceled."
-                    });
-                    await _context.SaveChangesAsync();
-                }
-
+                await _subscriptionService.CancelSubscriptionAsync(subscriptionId); // ✅ Now it actually cancels the subscription
                 return Ok("Subscription has been successfully canceled.");
             }
             catch (Exception ex)
@@ -188,6 +107,7 @@ namespace Cold_Storage_GO.Controllers
                 return BadRequest($"Error canceling subscription: {ex.Message}");
             }
         }
+
 
         // ✅ New: Get Subscriptions by SubscriptionChoice
         [HttpGet("choice/{subscriptionChoice}")]
@@ -232,25 +152,8 @@ namespace Cold_Storage_GO.Controllers
         public async Task<IActionResult> UpdateSubscription(Guid subscriptionId, [FromBody] UpdateSubscriptionRequest request)
         {
             await _subscriptionService.UpdateSubscriptionStatusAsync(subscriptionId, request);
-
-            // Analytics tracking: Log update event
-            var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
-            if (subscription != null)
-            {
-                _context.SubscriptionEvents.Add(new SubscriptionEvent
-                {
-                    SubscriptionId = subscription.SubscriptionId,
-                    UserId = subscription.UserId,
-                    EventType = "Updated",
-                    EventTime = DateTime.UtcNow,
-                    Details = "Subscription updated successfully."
-                });
-                await _context.SaveChangesAsync();
-            }
-
             return Ok("Subscription updated successfully");
         }
-
         // ✅ Fetch the latest subscription for the current user
         [HttpGet("latest")]
         public async Task<IActionResult> GetLatestSubscription()
@@ -309,6 +212,7 @@ namespace Cold_Storage_GO.Controllers
             return Ok(new { hasActiveSubscription });
         }
 
+
         [HttpGet("history")]
         public async Task<IActionResult> GetSubscriptionHistory()
         {
@@ -346,21 +250,35 @@ namespace Cold_Storage_GO.Controllers
         {
             var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
             if (subscription == null) return NotFound("Subscription not found.");
+            DateTime minFreezeStartDate = subscription.StartDate.AddDays(1);
+            if (request.StartDate < minFreezeStartDate)
+            {
+                return BadRequest($"Freeze start date must be at least {minFreezeStartDate:yyyy-MM-dd}.");
+            }
+            // Check if the freeze start or end date is after the subscription's end date
+            if (request.StartDate > subscription.EndDate || request.EndDate > subscription.EndDate)
+            {
+                return BadRequest("Freeze dates cannot be after the subscription's end date.");
+            }
 
             if (request.StartDate >= request.EndDate)
+            {
                 return BadRequest("End date must be after start date.");
+            }
 
-            // ✅ Check if an overlapping freeze already exists
+            // Check for overlapping freezes
             var overlappingFreeze = await _context.SubscriptionFreezeHistories
                 .AnyAsync(f => f.SubscriptionId == subscriptionId &&
-                               ((request.StartDate >= f.FreezeStartDate && request.StartDate <= f.FreezeEndDate) ||  // Starts inside an existing freeze
-                                (request.EndDate >= f.FreezeStartDate && request.EndDate <= f.FreezeEndDate) ||      // Ends inside an existing freeze
-                                (request.StartDate <= f.FreezeStartDate && request.EndDate >= f.FreezeEndDate)));     // Completely covers an existing freeze
+                               ((request.StartDate >= f.FreezeStartDate && request.StartDate <= f.FreezeEndDate) ||
+                                (request.EndDate >= f.FreezeStartDate && request.EndDate <= f.FreezeEndDate) ||
+                                (request.StartDate <= f.FreezeStartDate && request.EndDate >= f.FreezeEndDate)));
 
             if (overlappingFreeze)
+            {
                 return BadRequest("Freeze period overlaps with an existing scheduled freeze.");
+            }
 
-            // ✅ Add the new freeze period
+            // Add the new freeze period
             var freezeHistory = new SubscriptionFreezeHistory
             {
                 SubscriptionId = subscriptionId,
@@ -371,53 +289,52 @@ namespace Cold_Storage_GO.Controllers
             _context.SubscriptionFreezeHistories.Add(freezeHistory);
             await _context.SaveChangesAsync();
 
-            // Analytics tracking: Log scheduled freeze event
-            if (subscription != null)
-            {
-                _context.SubscriptionEvents.Add(new SubscriptionEvent
-                {
-                    SubscriptionId = subscription.SubscriptionId,
-                    UserId = subscription.UserId,
-                    EventType = "ScheduledFreeze",
-                    EventTime = DateTime.UtcNow,
-                    Details = $"Freeze scheduled from {request.StartDate} to {request.EndDate}."
-                });
-                await _context.SaveChangesAsync();
-            }
-
             return Ok(new { message = "Freeze scheduled successfully.", startDate = request.StartDate, endDate = request.EndDate });
         }
 
         // ✅ Cancel a scheduled freeze
-        [HttpDelete("cancel-scheduled-freeze/{subscriptionId}")]
-        public async Task<IActionResult> CancelScheduledFreeze(Guid subscriptionId)
+        [HttpDelete("cancel-scheduled-freeze/{subscriptionId}/{freezeId}")]
+        public async Task<IActionResult> CancelScheduledFreeze(Guid subscriptionId, Guid freezeId)
         {
             try
             {
-                await _subscriptionService.CancelScheduledFreezeAsync(subscriptionId);
+                var freezeRecord = await _context.SubscriptionFreezeHistories
+                    .FirstOrDefaultAsync(f => f.SubscriptionId == subscriptionId && f.FreezeId == freezeId);
 
-                // Analytics tracking: Log cancellation of scheduled freeze event
-                var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
-                if (subscription != null)
+                if (freezeRecord == null)
                 {
-                    _context.SubscriptionEvents.Add(new SubscriptionEvent
-                    {
-                        SubscriptionId = subscription.SubscriptionId,
-                        UserId = subscription.UserId,
-                        EventType = "CancelScheduledFreeze",
-                        EventTime = DateTime.UtcNow,
-                        Details = "Scheduled freeze canceled."
-                    });
-                    await _context.SaveChangesAsync();
+                    return NotFound(new { message = "No scheduled freeze found to cancel." });
                 }
 
-                return Ok("Scheduled freeze has been canceled.");
+                // Case 1: If the freeze has not started yet, just delete it
+                if (freezeRecord.FreezeStartDate > DateTime.UtcNow)
+                {
+                    _context.SubscriptionFreezeHistories.Remove(freezeRecord);
+                }
+                else
+                {
+                    // Case 2: If the freeze is already active, update the freeze end date to today + 1
+                    freezeRecord.FreezeEndDate = DateTime.UtcNow.Date.AddDays(1);
+
+                    // Unfreeze the subscription if it's currently frozen
+                    var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
+                    if (subscription != null && subscription.IsFrozen == true)
+                    {
+                        subscription.IsFrozen = false;
+                        _context.Subscriptions.Update(subscription);
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Scheduled freeze has been canceled." });
             }
             catch (Exception ex)
             {
-                return BadRequest($"Error canceling scheduled freeze: {ex.Message}");
+                return BadRequest(new { message = ex.Message });
             }
         }
+
 
         [HttpGet("scheduled-freezes/{subscriptionId}")]
         public async Task<IActionResult> GetScheduledFreezes(Guid subscriptionId)
@@ -427,6 +344,7 @@ namespace Cold_Storage_GO.Controllers
                 .OrderBy(f => f.FreezeStartDate)
                 .Select(f => new
                 {
+                    FreezeId = f.FreezeId,  // ✅ Include FreezeId
                     StartDate = f.FreezeStartDate,
                     EndDate = f.FreezeEndDate
                 })
@@ -446,75 +364,68 @@ namespace Cold_Storage_GO.Controllers
                 return NotFound(new { message = "No active subscription found." });
             }
 
-            // Get past subscriptions (excluding the current one)
+            var threeMonthsAgo = DateTime.UtcNow.AddMonths(-3);
+
+            // Get past subscriptions (excluding the current one) within the last 3 months
             var subscriptionHistory = await _context.Subscriptions
-                .Where(s => s.UserId == userId && s.SubscriptionId != activeSubscription.SubscriptionId)
+                .Where(s => s.UserId == userId && s.SubscriptionId != activeSubscription.SubscriptionId && s.EndDate >= threeMonthsAgo)
                 .OrderByDescending(s => s.EndDate)
                 .ToListAsync();
 
             var freezeCount = await _context.SubscriptionFreezeHistories
-                .Where(f => f.SubscriptionId == activeSubscription.SubscriptionId)
+                .Where(f => f.SubscriptionId == activeSubscription.SubscriptionId && f.FreezeStartDate >= threeMonthsAgo)
                 .CountAsync();
 
-            // ✅ FIX: Handle nullable bool? properly
-            bool alwaysRenews = subscriptionHistory.Count() >= 3 &&
-                                subscriptionHistory.All(s => s.AutoRenewal.GetValueOrDefault());
+            int cancellationCount = subscriptionHistory.Count(s => s.Status == "Canceled");
 
-            bool frequentCancellations = subscriptionHistory.Count(s => s.Status == "Canceled") >= 2;
-
-            // 🔹 New: Detect plan switching behavior
-            var lastThreePlans = subscriptionHistory
-                .Select(s => s.SubscriptionType)
+            // ✅ Check last 3 meal choices (SubscriptionChoice) instead of SubscriptionType
+            var lastThreeChoices = subscriptionHistory
+                .Select(s => s.SubscriptionChoice)
                 .Distinct()
                 .Take(3)
                 .ToList();
 
-            bool frequentPlanSwitching = lastThreePlans.Count == 3; // 3 different plans in a row
+            bool frequentMealSwitching = lastThreeChoices.Count == 3; // 3 different meal choices in a row
 
-            var allPlans = new List<string> { "Weekly", "Monthly", "Annual", "Pay-Per-Use" }; // Define available plans
-            var untriedPlans = allPlans.Except(lastThreePlans).ToList();
+            var allChoices = new List<string> { "Vegetarian", "Pescatarian", "Halal", "Keto", "Vegan", "Gluten-Free" };
+            var untriedChoices = allChoices.Except(lastThreeChoices).ToList();
 
-            string recommendedPlan = activeSubscription.SubscriptionType;
+            string recommendedChoice = activeSubscription.SubscriptionChoice;
             string reason = "No changes needed.";
 
-            // ✅ Prioritize the strongest recommendation first
-            if (freezeCount >= 3)
+            // ✅ Prioritization: Freeze & Cancellation first, then meal switching
+            if (freezeCount >= 3 && cancellationCount >= 2)
             {
-                recommendedPlan = "Weekly";
-                reason = "You froze your Monthly plan 3+ times. A Weekly plan may offer better flexibility.";
+                recommendedChoice = "Pay-Per-Use";
+                reason = "You've frozen and canceled multiple times. Pay-Per-Use may give you flexibility.";
             }
-            else if (alwaysRenews)
+            else if (freezeCount >= 3)
             {
-                recommendedPlan = "Monthly";
-                reason = "You've consistently renewed. A Monthly plan may save you money.";
+                recommendedChoice = "Weekly";
+                reason = "You froze your meals frequently. A Weekly plan may offer better flexibility.";
             }
-            else if (frequentCancellations)
+            else if (cancellationCount >= 2)
             {
-                recommendedPlan = "Pay-Per-Use";
-                reason = "You've canceled 2+ times. A Pay-Per-Use plan may better suit your needs.";
+                recommendedChoice = "Pay-Per-Use";
+                reason = "You've canceled 2+ times. A Pay-Per-Use plan may be more suitable.";
             }
-            else if (frequentPlanSwitching && untriedPlans.Count > 0)
+            else if (frequentMealSwitching && untriedChoices.Count > 0)
             {
-                recommendedPlan = string.Join(", ", untriedPlans);
-                reason = "You frequently switch plans! Try these new options.";
+                recommendedChoice = string.Join(", ", untriedChoices);
+                reason = "You frequently switch meal plans! Try these new options.";
             }
-
-            // Analytics tracking: Log recommendation event
-            _context.SubscriptionEvents.Add(new SubscriptionEvent
-            {
-                SubscriptionId = activeSubscription.SubscriptionId,
-                UserId = activeSubscription.UserId,
-                EventType = "Recommendation",
-                EventTime = DateTime.UtcNow,
-                Details = $"Smart recommendation provided: {recommendedPlan}. Reason: {reason}"
-            });
-            await _context.SaveChangesAsync();
 
             return Ok(new
             {
-                recommendedPlan,
+                recommendedChoice,
                 reason
             });
         }
+
+
+
+
+
+
     }
 }

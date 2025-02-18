@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Cold_Storage_GO.Controllers
 {
@@ -267,12 +268,18 @@ namespace Cold_Storage_GO.Controllers
                         userProfile.ProfilePicture = memoryStream.ToArray();  // Store as a byte array
                     }
                 }
-                else if (string.IsNullOrWhiteSpace(request.ProfilePicture?.FileName))
+                // ✅ Handle Address separately (Just like Profile Picture)
+                if (!string.IsNullOrWhiteSpace(request.StreetAddress))
                 {
-                    // If no profile picture is uploaded, ensure it is null
-                    userProfile.ProfilePicture = null;
+                    _logger.LogDebug($"Updating Street Address to {request.StreetAddress}.");
+                    userProfile.StreetAddress = request.StreetAddress;
                 }
 
+                if (!string.IsNullOrWhiteSpace(request.PostalCode))
+                {
+                    _logger.LogDebug($"Updating Postal Code to {request.PostalCode}.");
+                    userProfile.PostalCode = request.PostalCode;
+                }
 
                 // Update username and email if they are provided and not already taken
                 if (!string.IsNullOrWhiteSpace(request.Username))
@@ -562,6 +569,70 @@ namespace Cold_Storage_GO.Controllers
             return Ok(followersList);
         }
 
+        [Authorize(Roles = "Staff,Admin")]
+        [HttpGet("all-users")]
+        public async Task<IActionResult> GetAllUsers()
+        {
+            try
+            {
+                var users = await _context.Users
+                    .Select(u => new
+                    {
+                        u.UserId,
+                        u.Email
+                    })
+                    .ToListAsync();
+
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching users");
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        [HttpGet("user/{userId}")]
+        public async Task<IActionResult> GetProfileByUserId(string userId)
+        {
+            // Convert the incoming userId string to a Guid.
+            if (!Guid.TryParse(userId, out Guid parsedUserId))
+            {
+                return BadRequest("Invalid user id.");
+            }
+
+            // Retrieve the user by parsedUserId
+            var user = await _context.Users
+                .Include(u => u.UserAdministration)
+                .FirstOrDefaultAsync(u => u.UserId == parsedUserId);
+            if (user == null)
+            {
+                return NotFound("User not found.");
+            }
+            // Retrieve the user profile associated with this user
+            var userProfile = await _context.UserProfiles
+                .FirstOrDefaultAsync(up => up.UserId == parsedUserId);
+            if (userProfile == null)
+            {
+                return NotFound("User profile not found.");
+            }
+
+            bool isGoogleLogin = user.PasswordHash == "google-login";
+            var profileResponse = new
+            {
+                UserId = user.UserId,
+                Username = user.Username,
+                Email = user.Email,
+                FullName = userProfile.FullName,
+                PhoneNumber = userProfile.PhoneNumber,
+                StreetAddress = userProfile.StreetAddress,
+                PostalCode = userProfile.PostalCode,
+                ProfilePicture = userProfile.ProfilePicture,
+                Verified = user.UserAdministration.Verified,
+                IsGoogleLogin = isGoogleLogin
+            };
+            return Ok(profileResponse);
+        }
 
         public class DeleteAccountRequest
         {
@@ -585,10 +656,23 @@ namespace Cold_Storage_GO.Controllers
         // Request model for updating the profile
         public class UpdateProfileRequest
         {
-            public string Email { get; set; }
-            public string Username { get; set; }
-            public string PhoneNumber { get; set; }
-            public string FullName { get; set; }
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public string? Email { get; set; }
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+
+            public string? Username { get; set; }
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+
+            public string? PhoneNumber { get; set; }
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+
+            public string? FullName { get; set; }
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+
+            public string? StreetAddress { get; set; }
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+
+            public string? PostalCode { get; set; }
             public IFormFile? ProfilePicture { get; set; } // Use IFormFile for file uploads
         }
 

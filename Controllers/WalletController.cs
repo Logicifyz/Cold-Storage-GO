@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿// WalletController.cs
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Cold_Storage_GO.Models;
 using System;
@@ -101,9 +102,6 @@ namespace Cold_Storage_GO.Controllers
                 return NotFound("Wallet not found.");
 
             wallet.CoinsEarned += request.Coins;
-
-
-
             await _context.SaveChangesAsync();
 
             return Ok(wallet);
@@ -119,7 +117,6 @@ namespace Cold_Storage_GO.Controllers
             }
 
             var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == request.UserId);
-
             if (wallet == null)
                 return NotFound("Wallet not found.");
 
@@ -134,16 +131,15 @@ namespace Cold_Storage_GO.Controllers
 
         public class EarnCoinsRequest
         {
-            public Guid UserId { get; set; } // Changed from int to Guid
+            public Guid UserId { get; set; }
             public int Coins { get; set; }
         }
 
         public class DeductCoinsRequest
         {
-            public Guid UserId { get; set; } // Changed from int to Guid
+            public Guid UserId { get; set; }
             public int Coins { get; set; }
         }
-
 
         // POST: api/Wallet/redeem
         [HttpPost("redeem")]
@@ -162,7 +158,6 @@ namespace Cold_Storage_GO.Controllers
             }
 
             var userId = userSession.UserId;
-
             var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userId);
             var reward = await _context.Rewards.FindAsync(rewardId);
 
@@ -175,7 +170,7 @@ namespace Cold_Storage_GO.Controllers
             // Deduct coins
             wallet.CoinsRedeemed += reward.CoinsCost;
 
-            // Create redemption record
+            // Create redemption record with RewardUsable still true (voucher can later be applied at checkout)
             var redemption = new Redemptions
             {
                 RedemptionId = Guid.NewGuid(),
@@ -185,6 +180,7 @@ namespace Cold_Storage_GO.Controllers
                 ExpiryDate = reward.ExpiryDate,
                 RewardUsable = true
             };
+
             var redemptionEvent = new RewardRedemptionEvent
             {
                 RedemptionId = redemption.RedemptionId,
@@ -194,9 +190,8 @@ namespace Cold_Storage_GO.Controllers
                 ExpiryDate = reward.ExpiryDate,
                 RewardUsable = true
             };
-      
 
-            _context.RewardRedemptionEvents.Add(redemptionEvent);       
+            _context.RewardRedemptionEvents.Add(redemptionEvent);
             _context.Redemptions.Add(redemption);
             await _context.SaveChangesAsync();
 
@@ -213,7 +208,6 @@ namespace Cold_Storage_GO.Controllers
                 return Unauthorized("User is not logged in.");
             }
 
-            // Validate the session
             var userSession = await _context.UserSessions.FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
             if (userSession == null)
             {
@@ -222,7 +216,6 @@ namespace Cold_Storage_GO.Controllers
 
             var userId = userSession.UserId;
 
-            // Query the redemptions for the user
             var redemptions = await _context.Redemptions
                 .Where(r => r.UserId == userId)
                 .Select(r => new
@@ -235,7 +228,6 @@ namespace Cold_Storage_GO.Controllers
                 })
                 .ToListAsync();
 
-            // If no redemptions are found
             if (redemptions == null || !redemptions.Any())
             {
                 return NotFound("No redemptions found for the user.");
@@ -243,7 +235,5 @@ namespace Cold_Storage_GO.Controllers
 
             return Ok(redemptions);
         }
-
-
     }
 }

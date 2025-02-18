@@ -1,5 +1,7 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace Cold_Storage_GO.Models
 {
@@ -35,6 +37,13 @@ namespace Cold_Storage_GO.Models
         public bool NeedsFinalDish { get; set; } = false;
 
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+
+        [Required]
+        public string UserPrompt { get; set; } = string.Empty;
+
+        [ForeignKey("FinalRecipeId")]
+        [JsonIgnore]
+        public FinalDish? FinalRecipe { get; set; }
     }
 
 }

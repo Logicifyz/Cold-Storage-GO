@@ -1,7 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿// RewardsController.cs
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Cold_Storage_GO.Models;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 
 namespace Cold_Storage_GO.Controllers
@@ -84,6 +88,22 @@ namespace Cold_Storage_GO.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        // GET: api/Rewards/redemption-counts
+        [HttpGet("redemption-counts")]
+        public async Task<IActionResult> GetRedemptionCounts()
+        {
+            var redemptionCounts = await _context.Redemptions
+                .GroupBy(r => r.RewardId)
+                .Select(g => new
+                {
+                    RewardId = g.Key,
+                    RedemptionCount = g.Count()
+                })
+                .ToListAsync();
+
+            return Ok(redemptionCounts);
         }
     }
 }
