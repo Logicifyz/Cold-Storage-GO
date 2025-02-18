@@ -7,7 +7,7 @@ using MySql.EntityFrameworkCore.Metadata;
 namespace Cold_Storage_GO.Migrations
 {
     /// <inheritdoc />
-    public partial class init : Migration
+    public partial class adw : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -673,7 +673,8 @@ namespace Cold_Storage_GO.Migrations
                     CookingTime = table.Column<string>(type: "longtext", nullable: false),
                     Servings = table.Column<int>(type: "int", nullable: true),
                     NeedsClarification = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    TrendingRequest = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                    TrendingRequest = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    UserPrompt = table.Column<string>(type: "longtext", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -751,7 +752,8 @@ namespace Cold_Storage_GO.Migrations
                     Servings = table.Column<int>(type: "int", nullable: false),
                     CookingTime = table.Column<string>(type: "longtext", nullable: false),
                     Difficulty = table.Column<string>(type: "longtext", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    IsSaved = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -839,7 +841,8 @@ namespace Cold_Storage_GO.Migrations
                     Activation = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     FailedLoginAttempts = table.Column<int>(type: "int", nullable: false),
                     LockoutUntil = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    LastFailedLogin = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    LastFailedLogin = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    PushNotifications = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -907,6 +910,34 @@ namespace Cold_Storage_GO.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "AIRecipeImages",
+                columns: table => new
+                {
+                    ImageId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    FinalDishId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    ImageData = table.Column<byte[]>(type: "longblob", nullable: false),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    UploadedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AIRecipeImages", x => x.ImageId);
+                    table.ForeignKey(
+                        name: "FK_AIRecipeImages_FinalDishes_FinalDishId",
+                        column: x => x.FinalDishId,
+                        principalTable: "FinalDishes",
+                        principalColumn: "DishId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_AIRecipeImages_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "AIResponseLogs",
                 columns: table => new
                 {
@@ -917,11 +948,18 @@ namespace Cold_Storage_GO.Migrations
                     UserResponse = table.Column<string>(type: "longtext", nullable: true),
                     FinalRecipeId = table.Column<Guid>(type: "char(36)", nullable: true),
                     NeedsFinalDish = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    Timestamp = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                    Timestamp = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UserPrompt = table.Column<string>(type: "longtext", nullable: false),
+                    FinalRecipeDishId = table.Column<Guid>(type: "char(36)", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AIResponseLogs", x => x.ChatId);
+                    table.ForeignKey(
+                        name: "FK_AIResponseLogs_FinalDishes_FinalRecipeDishId",
+                        column: x => x.FinalRecipeDishId,
+                        principalTable: "FinalDishes",
+                        principalColumn: "DishId");
                     table.ForeignKey(
                         name: "FK_AIResponseLogs_FinalDishes_FinalRecipeId",
                         column: x => x.FinalRecipeId,
@@ -959,9 +997,24 @@ namespace Cold_Storage_GO.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateIndex(
+                name: "IX_AIRecipeImages_FinalDishId",
+                table: "AIRecipeImages",
+                column: "FinalDishId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AIRecipeImages_UserId",
+                table: "AIRecipeImages",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_AIRecipeRequests_UserId",
                 table: "AIRecipeRequests",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AIResponseLogs_FinalRecipeDishId",
+                table: "AIResponseLogs",
+                column: "FinalRecipeDishId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AIResponseLogs_FinalRecipeId",
@@ -1096,6 +1149,9 @@ namespace Cold_Storage_GO.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "AIRecipeImages");
+
             migrationBuilder.DropTable(
                 name: "AIRecipeRequests");
 

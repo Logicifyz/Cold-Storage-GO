@@ -118,9 +118,21 @@ namespace Cold_Storage_GO.Controllers
                 return Unauthorized("Invalid or expired session.");
             }
 
-            var cartItems = string.IsNullOrEmpty(userSession.Data)
-                ? new List<CartItem>()
-                : JsonSerializer.Deserialize<List<CartItem>>(userSession.Data);
+            List<CartItem> cartItems;
+            try
+            {
+                cartItems = string.IsNullOrEmpty(userSession.Data)
+                    ? new List<CartItem>()
+                    : JsonSerializer.Deserialize<List<CartItem>>(userSession.Data);
+            }
+            catch (JsonException)
+            {
+                // Reset the cart if deserialization fails
+                cartItems = new List<CartItem>();
+                userSession.Data = "[]";
+                _dbContext.UserSessions.Update(userSession);
+                await _dbContext.SaveChangesAsync();
+            }
 
             // Retrieve MealKit details
             var mealKitIds = cartItems.Select(ci => ci.MealKitId).ToList();
@@ -136,12 +148,12 @@ namespace Cold_Storage_GO.Controllers
                 ci.Price,
                 TotalPrice = ci.Quantity * ci.Price,
                 MealKit = mealKitDetails.FirstOrDefault(mk => mk.MealKitId == ci.MealKitId)
-            }).Where(ci => ci.MealKit != null);
+            }).Where(ci => ci.MealKit != null).ToList();
 
             return Ok(cartWithDetails);
         }
 
-        // NEW: DELETE endpoint to remove a cart item by MealKitId.
+        // DELETE endpoint to remove a cart item by MealKitId.
         [HttpDelete("{mealKitId}")]
         public async Task<IActionResult> RemoveFromCart(Guid mealKitId)
         {

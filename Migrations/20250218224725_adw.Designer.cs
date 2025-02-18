@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cold_Storage_GO.Migrations
 {
     [DbContext(typeof(DbContexts))]
-    [Migration("20250218071910_recreate")]
-    partial class recreate
+    [Migration("20250218224725_adw")]
+    partial class adw
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -21,6 +21,34 @@ namespace Cold_Storage_GO.Migrations
             modelBuilder
                 .HasAnnotation("ProductVersion", "8.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.AIRecipeImage", b =>
+                {
+                    b.Property<Guid>("ImageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("FinalDishId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<byte[]>("ImageData")
+                        .IsRequired()
+                        .HasColumnType("longblob");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("ImageId");
+
+                    b.HasIndex("FinalDishId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("AIRecipeImages");
+                });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.AIRecipeRequest", b =>
                 {
@@ -70,6 +98,10 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("UserPrompt")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.HasKey("RequestId");
 
                     b.HasIndex("UserId");
@@ -81,6 +113,9 @@ namespace Cold_Storage_GO.Migrations
                 {
                     b.Property<Guid>("ChatId")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("FinalRecipeDishId")
                         .HasColumnType("char(36)");
 
                     b.Property<Guid?>("FinalRecipeId")
@@ -103,10 +138,16 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("UserPrompt")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<string>("UserResponse")
                         .HasColumnType("longtext");
 
                     b.HasKey("ChatId");
+
+                    b.HasIndex("FinalRecipeDishId");
 
                     b.HasIndex("FinalRecipeId");
 
@@ -219,14 +260,20 @@ namespace Cold_Storage_GO.Migrations
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<Guid?>("DiscussionId")
                         .HasColumnType("char(36)");
 
                     b.Property<int>("Downvotes")
                         .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<Guid?>("ParentCommentId")
                         .HasColumnType("char(36)");
@@ -238,6 +285,9 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<Guid?>("RecipeId")
                         .HasColumnType("char(36)");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<int>("Upvotes")
                         .HasColumnType("int");
 
@@ -246,9 +296,43 @@ namespace Cold_Storage_GO.Migrations
 
                     b.HasKey("CommentId");
 
+                    b.HasIndex("DiscussionId");
+
                     b.HasIndex("ParentCommentId");
 
+                    b.HasIndex("RecipeId");
+
+                    b.HasIndex("UserId");
+
                     b.ToTable("Comments");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.CommentVote", b =>
+                {
+                    b.Property<Guid>("VoteId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("CommentId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("VoteType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("VotedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("VoteId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("CommentId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("CommentVotes");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.Delivery", b =>
@@ -334,6 +418,29 @@ namespace Cold_Storage_GO.Migrations
                     b.ToTable("DiscussionImages");
                 });
 
+            modelBuilder.Entity("Cold_Storage_GO.Models.DiscussionVote", b =>
+                {
+                    b.Property<Guid>("VoteId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("DiscussionId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("VoteType")
+                        .HasColumnType("int");
+
+                    b.HasKey("VoteId");
+
+                    b.HasIndex("DiscussionId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("DiscussionVotes");
+                });
+
             modelBuilder.Entity("Cold_Storage_GO.Models.Dish", b =>
                 {
                     b.Property<Guid>("DishId")
@@ -382,6 +489,9 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<string>("Ingredients")
                         .IsRequired()
                         .HasColumnType("longtext");
+
+                    b.Property<bool>("IsSaved")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<int>("Servings")
                         .HasColumnType("int");
@@ -585,6 +695,9 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");
 
+                    b.Property<decimal>("VoucherDiscount")
+                        .HasColumnType("decimal(18,2)");
+
                     b.HasKey("Id");
 
                     b.ToTable("orders");
@@ -764,6 +877,29 @@ namespace Cold_Storage_GO.Migrations
                     b.HasIndex("RecipeId");
 
                     b.ToTable("RecipeInstructions");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.RecipeVote", b =>
+                {
+                    b.Property<Guid>("VoteId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("VoteType")
+                        .HasColumnType("int");
+
+                    b.HasKey("VoteId");
+
+                    b.HasIndex("RecipeId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("RecipeVotes");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.Redemptions", b =>
@@ -1349,6 +1485,23 @@ namespace Cold_Storage_GO.Migrations
                     b.ToTable("Wallets");
                 });
 
+            modelBuilder.Entity("Cold_Storage_GO.Models.AIRecipeImage", b =>
+                {
+                    b.HasOne("Cold_Storage_GO.Models.FinalDish", "FinalDish")
+                        .WithMany("AIImages")
+                        .HasForeignKey("FinalDishId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Cold_Storage_GO.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FinalDish");
+                });
+
             modelBuilder.Entity("Cold_Storage_GO.Models.AIRecipeRequest", b =>
                 {
                     b.HasOne("Cold_Storage_GO.Models.User", null)
@@ -1360,6 +1513,10 @@ namespace Cold_Storage_GO.Migrations
 
             modelBuilder.Entity("Cold_Storage_GO.Models.AIResponseLog", b =>
                 {
+                    b.HasOne("Cold_Storage_GO.Models.FinalDish", "FinalRecipe")
+                        .WithMany("AIResponses")
+                        .HasForeignKey("FinalRecipeDishId");
+
                     b.HasOne("Cold_Storage_GO.Models.FinalDish", null)
                         .WithMany()
                         .HasForeignKey("FinalRecipeId")
@@ -1370,6 +1527,8 @@ namespace Cold_Storage_GO.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("FinalRecipe");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.ChatMessage", b =>
@@ -1381,18 +1540,68 @@ namespace Cold_Storage_GO.Migrations
 
             modelBuilder.Entity("Cold_Storage_GO.Models.Comment", b =>
                 {
+                    b.HasOne("Cold_Storage_GO.Models.Discussion", "Discussion")
+                        .WithMany()
+                        .HasForeignKey("DiscussionId");
+
                     b.HasOne("Cold_Storage_GO.Models.Comment", "ParentComment")
                         .WithMany("Replies")
                         .HasForeignKey("ParentCommentId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("Cold_Storage_GO.Models.Recipe", "Recipe")
+                        .WithMany()
+                        .HasForeignKey("RecipeId");
+
+                    b.HasOne("Cold_Storage_GO.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Discussion");
+
                     b.Navigation("ParentComment");
+
+                    b.Navigation("Recipe");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.CommentVote", b =>
+                {
+                    b.HasOne("Cold_Storage_GO.Models.Comment", "Comment")
+                        .WithMany()
+                        .HasForeignKey("CommentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Cold_Storage_GO.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Comment");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.DiscussionImage", b =>
                 {
                     b.HasOne("Cold_Storage_GO.Models.Discussion", "Discussion")
                         .WithMany("CoverImages")
+                        .HasForeignKey("DiscussionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Discussion");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.DiscussionVote", b =>
+                {
+                    b.HasOne("Cold_Storage_GO.Models.Discussion", "Discussion")
+                        .WithMany("Votes")
                         .HasForeignKey("DiscussionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1525,6 +1734,17 @@ namespace Cold_Storage_GO.Migrations
                     b.Navigation("Recipe");
                 });
 
+            modelBuilder.Entity("Cold_Storage_GO.Models.RecipeVote", b =>
+                {
+                    b.HasOne("Cold_Storage_GO.Models.Recipe", "Recipe")
+                        .WithMany("Votes")
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Recipe");
+                });
+
             modelBuilder.Entity("Cold_Storage_GO.Models.Subscription", b =>
                 {
                     b.HasOne("Cold_Storage_GO.Models.User", "User")
@@ -1588,6 +1808,15 @@ namespace Cold_Storage_GO.Migrations
             modelBuilder.Entity("Cold_Storage_GO.Models.Discussion", b =>
                 {
                     b.Navigation("CoverImages");
+
+                    b.Navigation("Votes");
+                });
+
+            modelBuilder.Entity("Cold_Storage_GO.Models.FinalDish", b =>
+                {
+                    b.Navigation("AIImages");
+
+                    b.Navigation("AIResponses");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.Order", b =>
@@ -1602,6 +1831,8 @@ namespace Cold_Storage_GO.Migrations
                     b.Navigation("Ingredients");
 
                     b.Navigation("Instructions");
+
+                    b.Navigation("Votes");
                 });
 
             modelBuilder.Entity("Cold_Storage_GO.Models.SupportTicket", b =>
