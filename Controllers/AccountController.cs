@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.ComponentModel.DataAnnotations;
-
+using System.Text.Json.Serialization;
 
 namespace Cold_Storage_GO.Controllers
 {
@@ -158,7 +158,6 @@ namespace Cold_Storage_GO.Controllers
         // Request model to accept the password in the request body
 
 
-    
 
 
         [HttpPut("update-profile")]
@@ -269,12 +268,18 @@ namespace Cold_Storage_GO.Controllers
                         userProfile.ProfilePicture = memoryStream.ToArray();  // Store as a byte array
                     }
                 }
-                else if (string.IsNullOrWhiteSpace(request.ProfilePicture?.FileName))
+                // ✅ Handle Address separately (Just like Profile Picture)
+                if (!string.IsNullOrWhiteSpace(request.StreetAddress))
                 {
-                    // If no profile picture is uploaded, ensure it is null
-                    userProfile.ProfilePicture = null;
+                    _logger.LogDebug($"Updating Street Address to {request.StreetAddress}.");
+                    userProfile.StreetAddress = request.StreetAddress;
                 }
 
+                if (!string.IsNullOrWhiteSpace(request.PostalCode))
+                {
+                    _logger.LogDebug($"Updating Postal Code to {request.PostalCode}.");
+                    userProfile.PostalCode = request.PostalCode;
+                }
 
                 // Update username and email if they are provided and not already taken
                 if (!string.IsNullOrWhiteSpace(request.Username))
@@ -629,8 +634,6 @@ namespace Cold_Storage_GO.Controllers
             return Ok(profileResponse);
         }
 
-
-
         public class DeleteAccountRequest
         {
             [Required]
@@ -653,10 +656,23 @@ namespace Cold_Storage_GO.Controllers
         // Request model for updating the profile
         public class UpdateProfileRequest
         {
-            public string Email { get; set; }
-            public string Username { get; set; }
-            public string PhoneNumber { get; set; }
-            public string FullName { get; set; }
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public string? Email { get; set; }
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+
+            public string? Username { get; set; }
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+
+            public string? PhoneNumber { get; set; }
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+
+            public string? FullName { get; set; }
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+
+            public string? StreetAddress { get; set; }
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+
+            public string? PostalCode { get; set; }
             public IFormFile? ProfilePicture { get; set; } // Use IFormFile for file uploads
         }
 
