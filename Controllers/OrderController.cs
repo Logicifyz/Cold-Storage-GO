@@ -1,5 +1,4 @@
-﻿// OrderController.cs
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Cold_Storage_GO.Models;
 using System;
@@ -10,6 +9,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
+using Cold_Storage_GO.Services;
 
 namespace Cold_Storage_GO.Controllers
 {
@@ -18,6 +18,7 @@ namespace Cold_Storage_GO.Controllers
     [Route("api/[controller]")]
     public class OrderController : ControllerBase, IDisposable
     {
+        private readonly NotificationService _notificationService;
         private readonly DbContexts _dbContext;
         private readonly IServiceProvider _serviceProvider;
 
@@ -26,10 +27,11 @@ namespace Cold_Storage_GO.Controllers
         private static IServiceScopeFactory _staticScopeFactory;
         private static readonly object _timerLock = new object();
 
-        public OrderController(DbContexts dbContext, IServiceProvider serviceProvider)
+        public OrderController(DbContexts dbContext, IServiceProvider serviceProvider, NotificationService notificationService)
         {
             _dbContext = dbContext;
             _serviceProvider = serviceProvider;
+            _notificationService = notificationService;
 
             // Initialize the static timer only once.
             if (_statusUpdateTimer == null)
@@ -236,20 +238,20 @@ namespace Cold_Storage_GO.Controllers
             // By default, set ShipTime to OrderTime + 30 seconds using local time if not provided.
             var defaultShipTime = orderTime.AddSeconds(30);
 
-            // Create order. (Assumes Order model has a VoucherDiscount property to show the applied discount.)
+            // Create order.
             var order = new Order
             {
                 OrderType = orderRequest.OrderType,
                 UserId = userSession.UserId,
                 DeliveryAddress = orderRequest.DeliveryAddress,
                 OrderStatus = "Preparing",
-                OrderTime = orderTime, // local time
+                OrderTime = orderTime,
                 ShipTime = orderRequest.ShipTime ?? defaultShipTime,
                 Subtotal = finalSubtotal,
                 ShippingCost = shippingCost,
                 Tax = tax,
                 TotalAmount = totalAmount,
-                VoucherDiscount = voucherDiscount, // new property for showing voucher discount
+                VoucherDiscount = voucherDiscount,
                 OrderItems = orderItems
             };
 
@@ -267,6 +269,18 @@ namespace Cold_Storage_GO.Controllers
                 ItemCount = orderItems.Sum(oi => oi.Quantity)
             };
             _dbContext.OrderEvents.Add(orderEvent);
+
+            // Retrieve UserSessionId from cookies.
+            var userSessionId = HttpContext.Request.Cookies["SessionId"];
+            var session = await _dbContext.UserSessions.FirstOrDefaultAsync(s => s.UserSessionId == userSessionId);
+            if (session == null || !session.IsActive)
+            {
+                return Unauthorized("Invalid or expired session.");
+            }
+
+            string notificationTitle = "Order Placed";
+            string notificationContent = $"Your order has been placed successfully.";
+            await _notificationService.CreateNotification(session.UserId, "Support", notificationTitle, notificationContent);
 
             // Clear the cart.
             userSession.Data = "[]";
