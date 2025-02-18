@@ -8,5 +8,6 @@ public class CreateSubscriptionRequest
     public string SubscriptionType { get; set; } // Fixed error (Monthly/Weekly)
     public string SubscriptionChoice { get; set; }  // New field added here
     public decimal Price { get; set; }
+    public string? DiscountCode { get; internal set; }
 }
 

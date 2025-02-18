@@ -3,6 +3,7 @@ using Cold_Storage_GO.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using System.Text.Json;
+using Newtonsoft.Json;
 
 namespace Cold_Storage_GO.Controllers
 {
@@ -104,99 +105,84 @@ namespace Cold_Storage_GO.Controllers
                     userId = userSession.UserId;
             }
 
-            var recipe = await _context.Recipes
-                .Include(r => r.CoverImages)
-                .Include(r => r.Ingredients)
-                .Include(r => r.Instructions)
-                .FirstOrDefaultAsync(r => r.RecipeId == id);
+            // ✅ Fetch Recipe + User Data + Dish Name (MealKit Used)
+            var query = from recipe in _context.Recipes
+                        join user in _context.Users on recipe.UserId equals user.UserId
+                        join userProfile in _context.UserProfiles on user.UserId equals userProfile.UserId
+                        join dish in _context.Dishes on recipe.DishId equals dish.DishId into dishJoin
+                        from dish in dishJoin.DefaultIfEmpty() // ✅ Ensures the recipe still loads if there's no associated dish
+                        where recipe.RecipeId == id
+                        select new
+                        {
+                            recipe.RecipeId,
+                            recipe.UserId,
+                            User = new
+                            {
+                                user.Username,
+                                userProfile.ProfilePicture
+                            },
+                            recipe.DishId,
+                            DishName = dish != null ? dish.Name : "Unknown MealKit", // ✅ Extract Dish Name
+                            recipe.Name,
+                            recipe.Description,
+                            recipe.TimeTaken,
+                            recipe.Tags,
+                            recipe.Visibility,
+                            recipe.Upvotes,
+                            recipe.Downvotes,
+                            CoverImages = recipe.CoverImages != null
+                                ? recipe.CoverImages.Select(img => Convert.ToBase64String(img.ImageData)).ToList()
+                                : new List<string>(),
+                            Votes = recipe.Votes,
+                            Ingredients = recipe.Ingredients.Select(i => new
+                            {
+                                i.IngredientId,
+                                Quantity = string.IsNullOrEmpty(i.Quantity) ? "Unknown Quantity" : i.Quantity,
+                                Unit = string.IsNullOrEmpty(i.Unit) ? "Unknown Unit" : i.Unit,
+                                Name = string.IsNullOrEmpty(i.Name) ? "Unnamed Ingredient" : i.Name
+                            }).ToList(),
+                            Instructions = recipe.Instructions.Select(instr => new
+                            {
+                                instr.InstructionId,
+                                StepNumber = instr.StepNumber > 0 ? instr.StepNumber : 1,
+                                Step = string.IsNullOrEmpty(instr.Step) ? "Step description missing" : instr.Step,
+                                StepImage = instr.StepImage != null ? Convert.ToBase64String(instr.StepImage) : null
+                            }).ToList()
+                        };
 
-            if (recipe == null)
+            var recipeData = await query.FirstOrDefaultAsync();
+
+            if (recipeData == null)
             {
                 return NotFound("Recipe not found.");
             }
 
-            var dish = await _context.Dishes.FindAsync(recipe.DishId);
-            string dishName = dish?.Name ?? "Unknown MealKit";
-
-            var userVote = userId.HasValue
-                ? await _context.RecipeVotes
-                    .Where(v => v.RecipeId == id && v.UserId == userId)
-                    .Select(v => v.VoteType)
-                    .FirstOrDefaultAsync()
-                : 0;
-
             var formattedRecipe = new
             {
-                RecipeId = recipe.RecipeId,
-                DishId = recipe.DishId,
-                DishName = dishName,
-                Name = recipe.Name,
-                Description = recipe.Description,
-                TimeTaken = recipe.TimeTaken,
-                Tags = recipe.Tags,
-                Visibility = recipe.Visibility,
-                Upvotes = Math.Max(recipe.Upvotes, 0),
-                Downvotes = Math.Max(recipe.Downvotes, 0),
-                VoteScore = recipe.Upvotes - recipe.Downvotes,  // ✅ CAN BE NEGATIVE!
-                UserVote = userVote,
-                CoverImages = recipe.CoverImages?.Select(img => Convert.ToBase64String(img.ImageData)).ToList() ?? new List<string>(),
-                Ingredients = recipe.Ingredients?.Select(i => new
-                {
-                    IngredientId = i.IngredientId,
-                    Quantity = string.IsNullOrEmpty(i.Quantity) ? "Unknown Quantity" : i.Quantity,
-                    Unit = string.IsNullOrEmpty(i.Unit) ? "Unknown Unit" : i.Unit,
-                    Name = string.IsNullOrEmpty(i.Name) ? "Unnamed Ingredient" : i.Name
-                }).ToList<object>() ?? new List<object>(),
-
-                Instructions = recipe.Instructions?.Select(instr => new
-                {
-                    InstructionId = instr.InstructionId,
-                    StepNumber = instr.StepNumber > 0 ? instr.StepNumber : 1,
-                    Step = string.IsNullOrEmpty(instr.Step) ? "Step description missing" : instr.Step,
-                    StepImage = instr.StepImage != null ? Convert.ToBase64String(instr.StepImage) : null
-                }).ToList<object>() ?? new List<object>()
+                recipeData.RecipeId,
+                recipeData.UserId,
+                User = recipeData.User, // ✅ Includes username and profile picture
+                recipeData.DishId,
+                recipeData.DishName, // ✅ Includes Dish Name (MealKit Used)
+                recipeData.Name,
+                recipeData.Description,
+                recipeData.TimeTaken,
+                recipeData.Tags,
+                recipeData.Visibility,
+                recipeData.Upvotes,
+                recipeData.Downvotes,
+                UserVote = userId.HasValue
+                    ? recipeData.Votes.FirstOrDefault(v => v.UserId == userId)?.VoteType ?? 0
+                    : 0,
+                recipeData.CoverImages,
+                recipeData.Ingredients,
+                recipeData.Instructions
             };
 
             return Ok(formattedRecipe);
         }
 
-        [HttpGet("user/{username}")]
-        public async Task<IActionResult> GetUserRecipes(string username)
-        {
-            if (string.IsNullOrEmpty(username))
-                return BadRequest("Username is required.");
 
-            var sessionId = Request.Cookies["SessionId"];
-            Guid? userId = null;
-
-            if (!string.IsNullOrEmpty(sessionId))
-            {
-                var userSession = await _context.UserSessions
-                    .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
-                if (userSession != null)
-                    userId = userSession.UserId;
-            }
-
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
-            if (user == null) return NotFound("User not found.");
-
-            var recipes = await _context.Recipes
-                .Where(r => r.UserId == user.UserId)
-                .Select(recipe => new
-                {
-                    recipe.RecipeId,
-                    recipe.Name,
-                    recipe.Description,
-                    recipe.Upvotes,
-                    recipe.Downvotes,
-                    CoverImages = recipe.CoverImages != null
-                        ? recipe.CoverImages.Select(img => Convert.ToBase64String(img.ImageData)).ToList()
-                        : new List<string>()  // Ensures no null errors
-                })
-                .ToListAsync();
-
-            return Ok(recipes);
-        }
 
         [HttpGet("my-recipes")]
         public async Task<IActionResult> GetMyRecipes()
@@ -509,12 +495,64 @@ namespace Cold_Storage_GO.Controllers
             }
         }
 
-
-
-        // 4. Update a Recipe
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateRecipe(Guid id, [FromForm] Recipe updatedRecipe, [FromForm] List<IFormFile>? coverImages, [FromForm] List<IFormFile>? instructionImages)
+        [HttpGet("user/{username}")]
+        public async Task<IActionResult> GetUserRecipes(string username)
         {
+            if (string.IsNullOrEmpty(username))
+                return BadRequest("Username is required.");
+
+            var sessionId = Request.Cookies["SessionId"];
+            Guid? userId = null;
+
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                var userSession = await _context.UserSessions
+                    .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+                if (userSession != null)
+                    userId = userSession.UserId;
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+            if (user == null) return NotFound("User not found.");
+
+            var recipes = await _context.Recipes
+                .Where(r => r.UserId == user.UserId)
+                .Select(recipe => new
+                {
+                    recipe.RecipeId,
+                    recipe.Name,
+                    recipe.Description,
+                    recipe.Upvotes,
+                    recipe.Downvotes,
+                    CoverImages = recipe.CoverImages != null
+                        ? recipe.CoverImages.Select(img => Convert.ToBase64String(img.ImageData)).ToList()
+                        : new List<string>()  // Ensures no null errors
+                })
+                .ToListAsync();
+
+            return Ok(recipes);
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateRecipe(Guid id,
+        [FromForm] string name,
+        [FromForm] string description,
+        [FromForm] string timeTaken,  // 🛠️ Fix conversion issue
+        [FromForm] string tags,
+        [FromForm] string visibility,
+        [FromForm] string? ingredients,
+        [FromForm] string? instructions,
+        [FromForm] List<IFormFile>? coverImages)
+        {
+            if (id == Guid.Empty) return BadRequest("Invalid Recipe ID.");
+
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId)) return Unauthorized("User is not logged in.");
+
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+            if (userSession == null) return Unauthorized("Invalid or expired session.");
+
             var recipe = await _context.Recipes
                 .Include(r => r.Ingredients)
                 .Include(r => r.Instructions)
@@ -523,84 +561,64 @@ namespace Cold_Storage_GO.Controllers
 
             if (recipe == null) return NotFound("Recipe not found.");
 
-            Console.WriteLine("Updating Recipe...");
-            recipe.Name = updatedRecipe.Name;
-            recipe.Description = updatedRecipe.Description;
-            recipe.TimeTaken = updatedRecipe.TimeTaken;
-            recipe.Tags = updatedRecipe.Tags;
-            recipe.Visibility = updatedRecipe.Visibility;
+            // 🔒 Ensure user owns the recipe
+            if (recipe.UserId != userSession.UserId) return Forbid("You do not have permission to edit this recipe.");
 
-            if (coverImages != null)
+            // ✅ Convert timeTaken from string to int
+            if (int.TryParse(timeTaken, out int parsedTimeTaken))
             {
-                _context.RemoveRange(recipe.CoverImages);
-                recipe.CoverImages.Clear();
-
-                foreach (var image in coverImages)
-                {
-                    using (var ms = new MemoryStream())
-                    {
-                        await image.CopyToAsync(ms);
-                        recipe.CoverImages.Add(new RecipeImage
-                        {
-                            ImageId = Guid.NewGuid(),
-                            ImageData = ms.ToArray(),
-                            RecipeId = recipe.RecipeId
-                        });
-                    }
-                }
+                recipe.TimeTaken = parsedTimeTaken;
+            }
+            else
+            {
+                return BadRequest("Invalid timeTaken value. Must be an integer.");
             }
 
-            _context.RecipeIngredients.RemoveRange(recipe.Ingredients);
-            foreach (var ingredient in updatedRecipe.Ingredients)
-            {
-                ingredient.IngredientId = Guid.NewGuid();
-                ingredient.RecipeId = recipe.RecipeId;
-                recipe.Ingredients.Add(ingredient);
-            }
+            // ✅ Update basic recipe details
+            recipe.Name = name;
+            recipe.Description = description;
+            recipe.Tags = tags;
+            recipe.Visibility = visibility;
 
-            _context.RecipeInstructions.RemoveRange(recipe.Instructions);
-            for (int i = 0; i < updatedRecipe.Instructions.Count; i++)
-            {
-                var instruction = updatedRecipe.Instructions[i];
-                instruction.InstructionId = Guid.NewGuid();
-                instruction.RecipeId = recipe.RecipeId;
-
-                if (instructionImages != null && i < instructionImages.Count)
-                {
-                    using (var ms = new MemoryStream())
-                    {
-                        await instructionImages[i].CopyToAsync(ms);
-                        instruction.StepImage = ms.ToArray();
-                    }
-                }
-
-                recipe.Instructions.Add(instruction);
-            }
-
-            _context.Recipes.Update(recipe);
             await _context.SaveChangesAsync();
-
-            Console.WriteLine("Recipe updated successfully.");
-            return NoContent();
+            return Ok(new { message = "Recipe updated successfully!", RecipeId = recipe.RecipeId });
         }
 
-        // 5. Delete a Recipe
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRecipe(Guid id)
         {
-            var recipe = await _context.Recipes
-                .Include(r => r.Ingredients)
-                .Include(r => r.Instructions)
-                .Include(r => r.CoverImages)
-                .FirstOrDefaultAsync(r => r.RecipeId == id);
+            var sessionId = Request.Cookies["SessionId"];
+            if (string.IsNullOrEmpty(sessionId)) return Unauthorized("Session not found.");
 
+            var userSession = await _context.UserSessions
+                .FirstOrDefaultAsync(s => s.UserSessionId == sessionId && s.IsActive);
+
+            if (userSession == null) return Unauthorized("Invalid session.");
+
+            var recipe = await _context.Recipes.FindAsync(id);
             if (recipe == null) return NotFound("Recipe not found.");
 
+            // ✅ Ensure user owns the recipe
+            if (recipe.UserId != userSession.UserId)
+            {
+                return Forbid("You do not have permission to delete this recipe.");
+            }
+
+            // ✅ Query and delete related comments separately (to avoid foreign key constraint issues)
+            var relatedComments = await _context.Comments.Where(c => c.RecipeId == id).ToListAsync();
+            _context.Comments.RemoveRange(relatedComments);
+
+            // ✅ Now delete the recipe
             _context.Recipes.Remove(recipe);
             await _context.SaveChangesAsync();
 
-            Console.WriteLine("Recipe deleted successfully.");
-            return NoContent();
+            return Ok(new { message = "Recipe deleted successfully" });
         }
+
+
+
+
+
     }
 }

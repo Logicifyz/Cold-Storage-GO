@@ -210,6 +210,34 @@ namespace Cold_Storage_GO.Controllers
 
             return Ok(article);
         }
+
+        [HttpDelete("articles/{articleId}")]
+        public async Task<IActionResult> DeleteArticle(Guid articleId)
+        {
+            // Get the session ID from the request header
+            var sessionId = Request.Cookies["SessionId"];
+
+            // Validate the staff session and role
+            var validationResponse = await ValidateStaffSession(sessionId);
+            if (validationResponse is UnauthorizedResult)
+            {
+                return validationResponse;
+            }
+
+            // Find the article by ID
+            var article = await _context.Articles.FirstOrDefaultAsync(a => a.ArticleId == articleId);
+            if (article == null)
+            {
+                return NotFound("Article not found.");
+            }
+
+            // Delete the article
+            _context.Articles.Remove(article);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Article deleted successfully." });
+        }
+
     }
 
 

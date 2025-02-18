@@ -12,6 +12,7 @@ namespace Cold_Storage_GO.Services
     {
         private readonly DbContexts _context;
         private readonly ILogger<SubscriptionService> _logger;
+        private readonly NotificationService _notificationService;
 
         // ✅ Fixed constructor issue
         public SubscriptionService(DbContexts context, ILogger<SubscriptionService> logger)
@@ -47,7 +48,7 @@ namespace Cold_Storage_GO.Services
             _context.Subscriptions.Update(subscription);
             await _context.SaveChangesAsync();
         }
-
+            
         // ✅ Unfreeze a subscription immediately
         public async Task UnfreezeSubscriptionAsync(Guid subscriptionId)
         {
@@ -362,9 +363,32 @@ namespace Cold_Storage_GO.Services
             return await _context.Subscriptions.Where(s => s.SubscriptionChoice == subscriptionChoice).ToListAsync();
         }
 
-        public async Task<IEnumerable<Subscription>> GetAllSubscriptionsAsync()
+        public async Task<IEnumerable<SubscriptionDto>> GetAllSubscriptionsAsync()
         {
-            return await _context.Subscriptions.ToListAsync();
+            var subscriptions = await _context.Subscriptions
+                .Include(s => s.User)
+                .ThenInclude(u => u.UserProfile)
+                .ToListAsync();
+
+            return subscriptions.Select(s => new SubscriptionDto
+            {
+                SubscriptionId = s.SubscriptionId,
+                UserId = s.UserId,
+                SubscriptionType = s.SubscriptionType,
+                SubscriptionChoice = s.SubscriptionChoice,
+                Status = s.Status,
+                AutoRenewal = s.AutoRenewal,
+                User = new UserDto
+                {
+                    UserId = s.User.UserId,
+                    Email = s.User.Email,
+                    UserProfile = new UserProfileDto
+                    {
+                        StreetAddress = s.User.UserProfile.StreetAddress,
+                        PostalCode = s.User.UserProfile.PostalCode
+                    }
+                }
+            });
         }
 
         public async Task<IEnumerable<Subscription>> GetSubscriptionsByStatusAsync(bool isFrozen)
@@ -435,6 +459,79 @@ namespace Cold_Storage_GO.Services
             await _context.SaveChangesAsync();
         }
 
+        public async Task<double> GetCancellationRateAsync()
+        {
+            var totalSubscriptions = await _context.Subscriptions.CountAsync();
+            var canceledSubscriptions = await _context.Subscriptions.CountAsync(s => s.Status == "Canceled");
+
+            return totalSubscriptions == 0 ? 0 : Math.Round((double)canceledSubscriptions / totalSubscriptions * 100, 2);
+        }
+
+        public async Task<double> GetFrozenSubscriptionRateAsync()
+        {
+            var totalSubscriptions = await _context.Subscriptions.CountAsync();
+            var frozenSubscriptions = await _context.Subscriptions.CountAsync(s => s.IsFrozen == true);
+
+            return totalSubscriptions == 0 ? 0 : Math.Round((double)frozenSubscriptions / totalSubscriptions * 100, 2);
+        }
+
+        public async Task<object> GetPopularSubscriptionChoicesAsync()
+        {
+            var mostPopularChoice = await _context.Subscriptions
+                .GroupBy(s => s.SubscriptionChoice)
+                .OrderByDescending(g => g.Count())
+                .Select(g => new { Choice = g.Key, Count = g.Count() })
+                .FirstOrDefaultAsync();
+
+            var leastPopularChoice = await _context.Subscriptions
+                .GroupBy(s => s.SubscriptionChoice)
+                .OrderBy(g => g.Count())
+                .Select(g => new { Choice = g.Key, Count = g.Count() })
+                .FirstOrDefaultAsync();
+
+            return new
+            {
+                mostPopular = mostPopularChoice ?? new { Choice = "N/A", Count = 0 },
+                leastPopular = leastPopularChoice ?? new { Choice = "N/A", Count = 0 }
+            };
+        }
+
+        public async Task<object> GetPopularSubscriptionTypesAsync()
+        {
+            var mostPopularType = await _context.Subscriptions
+                .GroupBy(s => s.SubscriptionType)
+                .OrderByDescending(g => g.Count())
+                .Select(g => new { Type = g.Key, Count = g.Count() })
+                .FirstOrDefaultAsync();
+
+            var leastPopularType = await _context.Subscriptions
+                .GroupBy(s => s.SubscriptionType)
+                .OrderBy(g => g.Count())
+                .Select(g => new { Type = g.Key, Count = g.Count() })
+                .FirstOrDefaultAsync();
+
+            return new
+            {
+                mostPopular = mostPopularType ?? new { Type = "N/A", Count = 0 },
+                leastPopular = leastPopularType ?? new { Type = "N/A", Count = 0 }
+            };
+        }
+
+        public async Task<object> GetSubscriptionSummaryAsync()
+        {
+            var total = await _context.Subscriptions.CountAsync();
+            var active = await _context.Subscriptions.CountAsync(s => s.Status == "Active");
+            var expired = await _context.Subscriptions.CountAsync(s => s.Status == "Expired");
+            var canceled = await _context.Subscriptions.CountAsync(s => s.Status == "Canceled");
+
+            return new
+            {
+                totalSubscriptions = total,
+                activeSubscriptions = active,
+                expiredSubscriptions = expired,
+                canceledSubscriptions = canceled
+            };
+        }
 
 
     }
