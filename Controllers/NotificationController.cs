@@ -91,8 +91,9 @@ namespace Cold_Storage_GO.Controllers
 
             if (!notifications.Any())
             {
-                return NotFound("No notifications found.");
+                return Ok(new { message = "No notifications found." });
             }
+
 
             return Ok(notifications);
         }
@@ -147,6 +148,119 @@ namespace Cold_Storage_GO.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { Message = "All read notifications deleted successfully." });
+        }
+
+        // PUT: api/Notification/EnablePushNotifications
+        [HttpPut("EnablePushNotifications")]
+        public async Task<IActionResult> EnablePushNotifications()
+        {
+            // Verify session and get user
+            var userResult = await VerifySession();
+            if (userResult.Result != null) return userResult.Result;
+
+            var user = userResult.Value;
+
+            if (user.UserAdministration == null)
+            {
+                return BadRequest("UserAdministration not found.");
+            }
+
+            user.UserAdministration.PushNotifications = true;
+            _context.UserAdministration.Update(user.UserAdministration);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Push notifications enabled." });
+        }
+
+        // PUT: api/Notification/DisablePushNotifications
+        [HttpPut("DisablePushNotifications")]
+        public async Task<IActionResult> DisablePushNotifications()
+        {
+            // Verify session and get user
+            var userResult = await VerifySession();
+            if (userResult.Result != null) return userResult.Result;
+
+            var user = userResult.Value;
+
+            if (user.UserAdministration == null)
+            {
+                return BadRequest("UserAdministration not found.");
+            }
+
+            user.UserAdministration.PushNotifications = false;
+            _context.UserAdministration.Update(user.UserAdministration);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Push notifications disabled." });
+        }
+
+        // GET: api/Notification/PushNotificationStatus
+        [HttpGet("PushNotificationStatus")]
+        public async Task<IActionResult> GetPushNotificationStatus()
+        {
+            // Verify session and get user
+            var userResult = await VerifySession();
+            if (userResult.Result != null) return userResult.Result;
+
+            var user = userResult.Value;
+
+            if (user.UserAdministration == null)
+            {
+                return BadRequest("UserAdministration not found.");
+            }
+
+            return Ok(new
+            {
+                PushNotifications = user.UserAdministration.PushNotifications
+            });
+        }
+        [HttpGet("UnreadCount")]
+        public async Task<IActionResult> GetUnreadNotificationsCount()
+        {
+            // Verify session and get user
+            var userResult = await VerifySession();
+            if (userResult.Result != null) return userResult.Result;
+
+            var user = userResult.Value;
+
+            // Count unread notifications for the user
+            var unreadCount = await _context.Notifications
+                .Where(n => n.UserId == user.UserId && !n.IsRead)
+                .CountAsync();
+
+            // Return the unread count, which could be 0 or any number
+            return Ok(new { UnreadCount = unreadCount });
+        }
+        // PUT: api/Notification/MarkAllAsRead
+        [HttpPut("MarkAllAsRead")]
+        public async Task<IActionResult> MarkAllAsRead()
+        {
+            // Verify session and get user
+            var userResult = await VerifySession();
+            if (userResult.Result != null) return userResult.Result;
+
+            var user = userResult.Value;
+
+            // Find all unread notifications for the current user
+            var unreadNotifications = await _context.Notifications
+                .Where(n => n.UserId == user.UserId && !n.IsRead)
+                .ToListAsync();
+
+            if (!unreadNotifications.Any())
+            {
+                return NotFound("No unread notifications to mark as read.");
+            }
+
+            // Mark all unread notifications as read
+            foreach (var notification in unreadNotifications)
+            {
+                notification.IsRead = true;
+            }
+
+            _context.Notifications.UpdateRange(unreadNotifications);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "All unread notifications marked as read." });
         }
 
     }

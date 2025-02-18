@@ -7,7 +7,7 @@ using MySql.EntityFrameworkCore.Metadata;
 namespace Cold_Storage_GO.Migrations
 {
     /// <inheritdoc />
-    public partial class initialcreate : Migration
+    public partial class recreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -145,6 +145,24 @@ namespace Cold_Storage_GO.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_MealKits", x => x.MealKitId);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "Notifications",
+                columns: table => new
+                {
+                    NotificationId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    Type = table.Column<string>(type: "longtext", nullable: false),
+                    Title = table.Column<string>(type: "longtext", nullable: false),
+                    Content = table.Column<string>(type: "longtext", nullable: false),
+                    IsRead = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Notifications", x => x.NotificationId);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
@@ -759,7 +777,8 @@ namespace Cold_Storage_GO.Migrations
                     Activation = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     FailedLoginAttempts = table.Column<int>(type: "int", nullable: false),
                     LockoutUntil = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    LastFailedLogin = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    LastFailedLogin = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    PushNotifications = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -777,8 +796,7 @@ namespace Cold_Storage_GO.Migrations
                 name: "UserProfiles",
                 columns: table => new
                 {
-                    ProfileId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
+                    ProfileId = table.Column<Guid>(type: "char(36)", nullable: false),
                     FullName = table.Column<string>(type: "longtext", nullable: false),
                     PhoneNumber = table.Column<string>(type: "longtext", nullable: false),
                     StreetAddress = table.Column<string>(type: "longtext", nullable: false),
@@ -977,6 +995,9 @@ namespace Cold_Storage_GO.Migrations
 
             migrationBuilder.DropTable(
                 name: "Follows");
+
+            migrationBuilder.DropTable(
+                name: "Notifications");
 
             migrationBuilder.DropTable(
                 name: "NutritionalFacts");

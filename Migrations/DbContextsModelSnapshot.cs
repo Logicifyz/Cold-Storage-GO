@@ -1209,6 +1209,9 @@ namespace Cold_Storage_GO.Migrations
                     b.Property<string>("PasswordResetToken")
                         .HasColumnType("longtext");
 
+                    b.Property<bool>("PushNotifications")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("VerificationToken")
                         .HasColumnType("longtext");
 

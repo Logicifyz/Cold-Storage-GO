@@ -162,11 +162,7 @@ namespace Cold_Storage_GO.Controllers
                 .Include(t => t.Images) // Include related images
                 .ToListAsync();
 
-            // If no tickets are found, return a message
-            if (!tickets.Any())
-            {
-                return NotFound("No tickets found for this user.");
-            }
+           
 
             // Iterate through the tickets and handle possible NULL values in the response
             var ticketResponses = tickets.Select(ticket =>

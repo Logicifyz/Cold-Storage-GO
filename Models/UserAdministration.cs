@@ -23,6 +23,7 @@ namespace Cold_Storage_GO.Models
         public DateTime? LockoutUntil { get; set; } // Indicates until when the account is locked
         public DateTime? LastFailedLogin { get; set; } // New property to track the last failed login timestamp
 
+        public bool PushNotifications { get; set; } = true; // Indicates if push notifications are enabled
 
         // Navigation Property
         public User User { get; set; } // Link to the User entity
