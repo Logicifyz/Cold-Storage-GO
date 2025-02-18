@@ -101,19 +101,6 @@ namespace Cold_Storage_GO.Controllers
                 return BadRequest("Invalid Discussion ID.");
             }
 
-            var discussion = await _context.Discussions
-                .Include(d => d.CoverImages)
-                .Include(d => d.Votes) // Include votes
-                .FirstOrDefaultAsync(d => d.DiscussionId == discussionGuid);
-
-            if (discussion == null)
-            {
-                Console.WriteLine("❌ [ERROR] Discussion not found in database.");
-                return NotFound();
-            }
-
-            Console.WriteLine($"✅ [FOUND] Returning discussion: {discussion.Title}");
-
             var sessionId = Request.Cookies["SessionId"];
             Guid? userId = null;
 
@@ -125,26 +112,62 @@ namespace Cold_Storage_GO.Controllers
                     userId = userSession.UserId;
             }
 
-            var userVote = userId.HasValue
-                ? discussion.Votes.FirstOrDefault(v => v.UserId == userId)?.VoteType ?? 0
-                : 0;
+            // ✅ Fetch Discussion + User Details
+            var query = from discussion in _context.Discussions
+                        join user in _context.Users on discussion.UserId equals user.UserId
+                        join userProfile in _context.UserProfiles on user.UserId equals userProfile.UserId
+                        where discussion.DiscussionId == discussionGuid
+                        select new
+                        {
+                            discussion.DiscussionId,
+                            discussion.UserId,
+                            User = new
+                            {
+                                user.Username,
+                                userProfile.ProfilePicture
+                            },
+                            discussion.Title,
+                            discussion.Content,
+                            discussion.Category,
+                            discussion.Visibility,
+                            discussion.Upvotes,
+                            discussion.Downvotes,
+                            CoverImages = discussion.CoverImages != null
+                                ? discussion.CoverImages.Select(img => Convert.ToBase64String(img.ImageData)).ToList()
+                                : new List<string>(),
+                            Votes = discussion.Votes
+                        };
+
+            var discussionData = await query.FirstOrDefaultAsync();
+
+            if (discussionData == null)
+            {
+                Console.WriteLine("❌ [ERROR] Discussion not found in database.");
+                return NotFound();
+            }
+
+            Console.WriteLine($"✅ [FOUND] Returning discussion: {discussionData.Title}");
 
             var formattedDiscussion = new
             {
-                discussion.DiscussionId,
-                discussion.UserId,
-                discussion.Title,
-                discussion.Content,
-                discussion.Category,
-                discussion.Visibility,
-                discussion.Upvotes,
-                discussion.Downvotes,
-                userVote, // Include user's vote state
-                CoverImages = discussion.CoverImages?.Select(img => Convert.ToBase64String(img.ImageData)).ToList()
+                discussionData.DiscussionId,
+                discussionData.UserId,
+                User = discussionData.User, // ✅ Includes username & profile picture
+                discussionData.Title,
+                discussionData.Content,
+                discussionData.Category,
+                discussionData.Visibility,
+                discussionData.Upvotes,
+                discussionData.Downvotes,
+                UserVote = userId.HasValue
+                    ? discussionData.Votes.FirstOrDefault(v => v.UserId == userId)?.VoteType ?? 0
+                    : 0,
+                discussionData.CoverImages
             };
 
             return Ok(formattedDiscussion);
         }
+
 
         [HttpGet("user/{username}")]
         public async Task<IActionResult> GetUserDiscussions(string username)
