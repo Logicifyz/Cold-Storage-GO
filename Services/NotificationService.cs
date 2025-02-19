@@ -39,6 +39,20 @@ namespace Cold_Storage_GO.Services
         // Function to send an email for the notification using EmailService
         public async Task SendNotificationEmail(Guid userId, string title, string content)
         {
+            var userAdmin = await _context.UserAdministration
+.FirstOrDefaultAsync(ua => ua.UserId == userId);
+
+            if (userAdmin == null)
+            {
+                throw new Exception("User administration record not found.");
+            }
+
+            // Only proceed with sending the email if push notifications are enabled
+            if (!userAdmin.PushNotifications)
+            {
+                // If notifications are disabled, just return without sending the email
+                return;
+            }
             // Retrieve user email
             var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
             if (user == null || string.IsNullOrEmpty(user.Email))

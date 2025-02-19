@@ -3,6 +3,7 @@ using Google.Protobuf.WellKnownTypes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Mysqlx.Session;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -27,7 +28,7 @@ namespace Cold_Storage_GO.Middleware
             var requestPath = context.Request.Path.Value;
             var excludedPaths = new[]
             {
-                "/api/Auth/login","/api/Auth/google-login","/api/staff/login","/api/Auth/register","/api/Auth/request-password-reset","/api/Auth/reset-password","/api/Auth/staff/login", "/swagger", "/api/Account/profile/", "/api/HelpCentre",
+                "/api/Auth/login","/api/Auth/google-login","/api/staff/login","/api/Auth/register","/api/Auth/request-password-reset","/api/Auth/reset-password","/api/Auth/staff/login", "/swagger", "/api/Account/profile/", "/api/HelpCentre","/api/Auth/verify-email",
                 "/api/MealKit", "/api/Recipes", "/api/deliveries", "/api/deliveries/",
                 "/api/subscriptions", "/api/stripe/webhook", "/api/stripe/webhook/","/api/Dish","/api/Rewards","/api/Wallet", "/api/HelpCentre", "/api/HelpCentre/","/api/subscriptions/schedule-freeze/","/api/subscriptions/cancel-scheduled-freeze/","/api/subscriptions/schedule-freeze","/api/subscriptions/cancel-scheduled-freeze","/api/subscriptions/user-has-active/","/api/subscriptions/user-has-active","/api/subscriptions/all/","/api/subscriptions/all","/api/subscriptions/cancel/","/api/subscriptions/freeze/",
                 "/api/Auth/check-session"

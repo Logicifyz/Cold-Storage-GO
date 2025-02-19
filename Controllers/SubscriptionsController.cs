@@ -132,6 +132,7 @@ namespace Cold_Storage_GO.Controllers
         [HttpGet("staff/all")]
         public async Task<IActionResult> GetAllSubscriptions()
         {
+
             var subscriptions = await _subscriptionService.GetAllSubscriptionsAsync();
             return Ok(subscriptions);
         }
